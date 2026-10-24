@@ -1,0 +1,57 @@
+{
+  "placeholder": true,
+  "meta": {
+    "title": "Cesart — Illustration & 2D Animation (placeholder)",
+    "description": "Placeholder description. Lorem ipsum dolor sit amet, portfolio of illustration and 2D animation.",
+    "author": "Cesart",
+    "ogImage": "placeholder/og-image.jpg",
+    "lang": "en"
+  },
+  "hero": {
+    "heading": "Cesart",
+    "subheading": "Illustrator & 2D animator (placeholder tagline, lorem ipsum)",
+    "media": {
+      "type": "video",
+      "src": "placeholder/hero-reel.mp4",
+      "poster": "placeholder/hero-reel-poster.jpg",
+      "alt": "Placeholder reel: a grey circle loops around an ellipse",
+      "width": 1280,
+      "height": 720,
+      "loop": true
+    }
+  },
+  "about": {
+    "heading": "About",
+    "body": "Placeholder bio. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.\n\n**Services (placeholder):** editorial illustration, character design, 2D animation, motion loops.",
+    "portrait": {
+      "type": "image",
+      "src": "placeholder/portrait.jpg",
+      "alt": "Placeholder portrait: grey frame with the word Portrait",
+      "width": 1200,
+      "height": 1500
+    }
+  },
+  "contact": {
+    "heading": "Contact",
+    "email": "hello@example.com",
+    "ctaLabel": "Commissions (placeholder)",
+    "socials": [
+      { "id": "instagram", "label": "Instagram", "url": "https://www.instagram.com/" },
+      { "id": "behance", "label": "Behance", "url": "https://www.behance.net/" },
+      { "id": "vimeo", "label": "Vimeo", "url": "https://vimeo.com/" }
+    ]
+  },
+  "categories": [
+    { "id": "illustration", "slug": "illustration", "label": "Illustration" },
+    { "id": "animation", "slug": "animation", "label": "Animation" }
+  ],
+  "layout": {
+    "sections": [
+      { "id": "hero", "visible": true },
+      { "id": "featured", "visible": true, "options": { "workIds": ["placeholder-illustration-01", "placeholder-animation-01"], "limit": 6 } },
+      { "id": "grid", "visible": true, "options": { "columns": { "sm": 1, "md": 2, "lg": 3 }, "masonry": true, "showFilters": true } },
+      { "id": "about", "visible": true },
+      { "id": "contact", "visible": true }
+    ]
+  }
+}
