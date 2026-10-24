@@ -1,0 +1,19 @@
+---
+interface Props {
+  author: string;
+}
+const { author } = Astro.props;
+---
+
+<footer class="site-footer">
+  <div class="container site-footer__inner">
+    <p>© {new Date().getFullYear()} {author}. All rights reserved.</p>
+    <a href="#top">Back to top</a>
+  </div>
+</footer>
+
+<style is:global>
+  .site-footer { border-top: 1px solid var(--color-border); padding-block: var(--space-6); font-size: var(--text-sm); color: var(--color-muted); }
+  .site-footer__inner { display: flex; justify-content: space-between; flex-wrap: wrap; gap: var(--space-3); }
+  .site-footer p { margin: 0; }
+</style>

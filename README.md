@@ -2,6 +2,20 @@
 
 Portfolio site for Cesart, an illustrator and 2D animator. Static Astro site published at https://echo1560.github.io/CesartPortfolio/. Design spec: [`docs/DESIGN.md`](docs/DESIGN.md). Architecture: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
+## Run locally
+
+Requires Node 22 and npm.
+
+```sh
+npm ci            # install dependencies
+npm run dev       # dev server at http://localhost:4321/CesartPortfolio/
+npm run build     # validate content, then build the static site into dist/
+npm run preview   # serve dist/ at http://localhost:4321/CesartPortfolio/
+npm run check     # type check (astro check)
+```
+
+The site is served under `/CesartPortfolio/` in dev and preview too, so open that path, not `/`. Colours, fonts, spacing and motion durations are CSS custom properties in `src/styles/tokens.css`. Under `prefers-reduced-motion: reduce` all motion is switched off and videos or animations show their poster only.
+
 ## Adding content
 
 You add new work by editing files only. No code changes are needed.

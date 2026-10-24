@@ -1,0 +1,38 @@
+---
+import type { Site } from '../lib/schema';
+import { renderMarkdown } from '../lib/content';
+import MediaView from './MediaView.astro';
+
+interface Props {
+  about: Site['about'];
+}
+const { about } = Astro.props;
+const html = renderMarkdown(about.body);
+---
+
+<section class="section about" id="about" aria-labelledby="about-title">
+  <div class="container about__inner">
+    {
+      about.portrait && (
+        <div class="about__portrait reveal">
+          <MediaView media={about.portrait} mode="detail" sizes="(min-width: 800px) 30vw, 80vw" />
+        </div>
+      )
+    }
+    <div class="about__text reveal">
+      <h2 id="about-title" class="section__title">{about.heading}</h2>
+      <div class="prose" set:html={html} />
+    </div>
+  </div>
+</section>
+
+<style is:global>
+  .about__inner { display: grid; gap: var(--space-6); align-items: start; }
+  .about__portrait { max-width: 22rem; }
+  .about__portrait .media { background: transparent; }
+  .prose { max-width: var(--measure); }
+  .prose p { margin-bottom: var(--space-4); }
+  @media (min-width: 800px) {
+    .about__inner { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: var(--space-8); }
+  }
+</style>

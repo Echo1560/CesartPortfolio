@@ -1,0 +1,38 @@
+---
+import type { GetStaticPaths } from 'astro';
+import Base from '../../layouts/Base.astro';
+import WorkDetail from '../../components/WorkDetail.astro';
+import { getCategories, getSite, getWorks } from '../../lib/content';
+import { url, workUrl } from '../../components/url';
+
+export const getStaticPaths = (async () => {
+  const works = await getWorks();
+  return works.map((work, i) => ({
+    params: { slug: work.slug },
+    props: { work, prev: works[i - 1], next: works[i + 1] },
+  }));
+}) satisfies GetStaticPaths;
+
+const { work, prev, next } = Astro.props;
+const [site, categories] = await Promise.all([getSite(), getCategories()]);
+const category = categories.find((c) => c.id === work.categoryId);
+const image = work.media.poster ?? (work.media.type === 'image' ? work.media.src : undefined);
+const description = work.description || site.meta.description;
+---
+
+<Base title={`${work.title} — ${site.meta.author}`} description={description} image={image} ogType="article" workSlug={work.slug}>
+  <div class="container work-page">
+    <a class="work-page__back" href={`${url()}#work`}>← All work</a>
+    <WorkDetail work={work} category={category} variant="page" />
+    <nav class="work-page__pager" aria-label="More work">
+      {prev ? <a href={workUrl(prev.slug)} rel="prev">← {prev.title}</a> : <span />}
+      {next ? <a href={workUrl(next.slug)} rel="next">{next.title} →</a> : <span />}
+    </nav>
+  </div>
+</Base>
+
+<style is:global>
+  .work-page { padding-block: var(--space-6) var(--space-8); }
+  .work-page__back { display: inline-block; margin-bottom: var(--space-5); font-size: var(--text-sm); }
+  .work-page__pager { display: flex; justify-content: space-between; gap: var(--space-4); margin-top: var(--space-8); padding-top: var(--space-5); border-top: 1px solid var(--color-border); }
+</style>

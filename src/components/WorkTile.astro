@@ -1,0 +1,41 @@
+---
+import type { Category, Work } from '../lib/schema';
+import MediaView from './MediaView.astro';
+import { workUrl } from './url';
+
+interface Props {
+  work: Work;
+  category?: Category;
+  index?: number;
+  sizes?: string;
+}
+
+const { work, category, index = 0, sizes } = Astro.props;
+---
+
+<li class="tile reveal" style={`--i: ${index % 6}`} data-tile data-slug={work.slug} data-category={category?.slug ?? work.categoryId}>
+  <a class="tile__link" href={workUrl(work.slug)} aria-label={`${work.title}${work.year ? `, ${work.year}` : ''}`}>
+    <MediaView media={work.media} mode="tile" sizes={sizes} />
+    <span class="tile__caption" aria-hidden="true">
+      <span class="tile__title">{work.title}</span>
+      <span class="tile__meta">{[category?.label, work.year].filter(Boolean).join(' · ')}</span>
+    </span>
+  </a>
+</li>
+
+<style is:global>
+  .tile { list-style: none; break-inside: avoid; margin: 0 0 var(--grid-gap); }
+  .tile[hidden] { display: none; }
+  .tile__link { display: block; position: relative; text-decoration: none; color: inherit; border-radius: var(--radius-sm); overflow: hidden; }
+  .tile__link .media { transition: transform var(--dur-base) var(--ease-out); }
+  .tile__link:hover .media, .tile__link:focus-visible .media { transform: scale(var(--hover-scale)); }
+  .tile__caption {
+    position: absolute; inset: auto 0 0 0; display: flex; flex-direction: column; padding: var(--space-5) var(--space-4) var(--space-3);
+    background: linear-gradient(to top, rgb(0 0 0 / 0.7), transparent); color: #fff; opacity: 0;
+    transition: opacity var(--dur-fast) var(--ease-out);
+  }
+  .tile__link:hover .tile__caption, .tile__link:focus-visible .tile__caption { opacity: 1; }
+  @media (hover: none) { .tile__caption { opacity: 1; } }
+  .tile__title { font-family: var(--font-display); font-size: var(--text-lg); line-height: var(--leading-snug); }
+  .tile__meta { font-size: var(--text-xs); letter-spacing: var(--tracking-caps); text-transform: uppercase; opacity: 0.85; }
+</style>

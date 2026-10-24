@@ -1,0 +1,63 @@
+---
+import '../styles/global.css';
+import { getSite } from '../lib/content';
+import { resolveMediaUrl } from '../lib/media';
+import { url } from '../components/url';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+
+interface Props {
+  title?: string;
+  description?: string;
+  /** Path relative to `content/media/`. Defaults to `meta.ogImage`. */
+  image?: string;
+  ogType?: 'website' | 'article';
+  home?: boolean;
+  /** Work slug, set on detail pages for tracking. */
+  workSlug?: string;
+}
+
+const site = await getSite();
+const { meta } = site;
+const { title = meta.title, description = meta.description, image = meta.ogImage, ogType = 'website', home = false, workSlug } = Astro.props;
+const canonical = new URL(Astro.url.pathname, Astro.site).href;
+const ogImage = new URL(await resolveMediaUrl(image), Astro.site).href;
+const visible = site.layout.sections.filter((s) => s.visible).map((s) => s.id);
+---
+
+<!doctype html>
+<html lang={meta.lang}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta name="author" content={meta.author} />
+    <link rel="canonical" href={canonical} />
+    <link rel="icon" type="image/svg+xml" href={url('favicon.svg')} />
+    <meta property="og:type" content={ogType} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:locale" content={meta.lang} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
+    <script is:inline>
+      document.documentElement.classList.add('js');
+    </script>
+  </head>
+  <body id="top" data-work-slug={workSlug}>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <Header name={meta.author} ctaLabel={site.contact.ctaLabel} email={site.contact.email} sections={visible} home={home} />
+    <main id="main">
+      <slot />
+    </main>
+    <Footer author={meta.author} />
+    <script>
+      import '../scripts/main';
+    </script>
+  </body>
+</html>

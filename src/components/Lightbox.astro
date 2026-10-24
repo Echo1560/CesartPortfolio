@@ -1,0 +1,58 @@
+---
+import type { Category, Work } from '../lib/schema';
+import WorkDetail from './WorkDetail.astro';
+
+interface Props {
+  works: Work[];
+  categories: Category[];
+}
+const { works, categories } = Astro.props;
+---
+
+<dialog class="lightbox" id="lightbox" aria-labelledby="lightbox-title" data-lightbox>
+  <div class="lightbox__bar">
+    <a class="lightbox__page" href="#" data-lightbox-page>Open full page</a>
+    <button type="button" class="lightbox__btn" data-lightbox-close aria-label="Close">✕</button>
+  </div>
+  <button type="button" class="lightbox__btn lightbox__nav lightbox__nav--prev" data-lightbox-prev aria-label="Previous work">←</button>
+  <button type="button" class="lightbox__btn lightbox__nav lightbox__nav--next" data-lightbox-next aria-label="Next work">→</button>
+  <div class="lightbox__body" data-lightbox-body></div>
+</dialog>
+
+{
+  works.map((w) => (
+    <template data-lightbox-template={w.slug}>
+      <WorkDetail work={w} category={categories.find((c) => c.id === w.categoryId)} variant="lightbox" />
+    </template>
+  ))
+}
+
+<style is:global>
+  .lightbox {
+    position: fixed; inset: 0; width: 100%; height: 100%; max-width: none; max-height: none; margin: 0; padding: 0; border: 0;
+    background: var(--color-overlay); color: var(--color-on-overlay); z-index: var(--z-lightbox);
+    opacity: 0; transition: opacity var(--dur-base) var(--ease-out), display var(--dur-base) allow-discrete, overlay var(--dur-base) allow-discrete;
+  }
+  .lightbox[open] { opacity: 1; }
+  @starting-style { .lightbox[open] { opacity: 0; } }
+  .lightbox::backdrop { background: transparent; }
+  .lightbox a { color: var(--color-on-overlay); }
+  .lightbox__bar { position: absolute; top: 0; left: 0; right: 0; display: flex; justify-content: space-between; align-items: center; padding: var(--space-3) var(--gutter); z-index: 2; font-size: var(--text-sm); }
+  .lightbox__btn {
+    width: 2.75rem; height: 2.75rem; border-radius: 50%; border: 1px solid rgb(255 255 255 / 0.3); background: rgb(0 0 0 / 0.4); color: var(--color-on-overlay); font-size: var(--text-lg); line-height: 1;
+    transition: background-color var(--dur-fast) var(--ease-out);
+  }
+  .lightbox__btn:hover { background: rgb(255 255 255 / 0.2); }
+  .lightbox__nav { position: absolute; top: 50%; translate: 0 -50%; z-index: 2; }
+  .lightbox__nav--prev { left: var(--space-3); }
+  .lightbox__nav--next { right: var(--space-3); }
+  .lightbox__body { height: 100%; overflow-y: auto; padding: var(--space-8) var(--gutter) var(--space-6); overscroll-behavior: contain; touch-action: pan-y; }
+  .lightbox .detail { max-width: 80rem; margin-inline: auto; }
+  .lightbox .detail__info { position: static; }
+  .lightbox .detail__desc, .lightbox .detail__tags li { color: var(--color-on-overlay); opacity: 0.8; }
+  .lightbox .eyebrow { color: var(--color-on-overlay); opacity: 0.7; }
+  .lightbox .detail__media .media { max-height: 70vh; }
+  @media (max-width: 599px) {
+    .lightbox__nav { top: auto; bottom: var(--space-3); translate: none; }
+  }
+</style>

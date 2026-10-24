@@ -1,0 +1,21 @@
+---
+import Base from '../layouts/Base.astro';
+import { getSite } from '../lib/content';
+import { url } from '../components/url';
+
+const site = await getSite();
+---
+
+<Base title={`Page not found — ${site.meta.author}`}>
+  <div class="container not-found">
+    <p class="eyebrow">404</p>
+    <h1>Page not found</h1>
+    <p>The page you are looking for does not exist or has moved.</p>
+    <p><a class="btn" href={url()}>Back to the portfolio</a></p>
+  </div>
+</Base>
+
+<style is:global>
+  .not-found { padding-block: var(--space-9); }
+  .not-found h1 { font-size: var(--text-3xl); margin-block: var(--space-3) var(--space-4); }
+</style>

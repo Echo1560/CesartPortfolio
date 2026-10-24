@@ -1,0 +1,34 @@
+---
+import Base from '../layouts/Base.astro';
+import { getCategories, getFeaturedWorks, getLayout, getSite, getWorks } from '../lib/content';
+import Hero from '../components/Hero.astro';
+import Featured from '../components/Featured.astro';
+import Grid from '../components/Grid.astro';
+import About from '../components/About.astro';
+import Contact from '../components/Contact.astro';
+import Lightbox from '../components/Lightbox.astro';
+
+const [site, layout, categories, works, featured] = await Promise.all([getSite(), getLayout(), getCategories(), getWorks(), getFeaturedWorks()]);
+const sections = layout.sections.filter((s) => s.visible);
+const contactVisible = sections.some((s) => s.id === 'contact');
+---
+
+<Base home>
+  {
+    sections.map((s) => {
+      switch (s.id) {
+        case 'hero':
+          return <Hero hero={site.hero} />;
+        case 'featured':
+          return <Featured works={featured} categories={categories} />;
+        case 'grid':
+          return <Grid works={works} categories={categories} options={s.options} ctaLabel={site.contact.ctaLabel} contactVisible={contactVisible} />;
+        case 'about':
+          return <About about={site.about} />;
+        case 'contact':
+          return <Contact contact={site.contact} />;
+      }
+    })
+  }
+  <Lightbox works={works} categories={categories} />
+</Base>

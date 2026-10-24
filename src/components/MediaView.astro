@@ -1,0 +1,117 @@
+---
+/**
+ * Renders any content `Media` entry. Modes:
+ *  - tile: grid/featured thumbnail. Animated media and videos play on hover/focus (pointer devices) or when visible (touch).
+ *  - hero: muted looping reel, plays when visible.
+ *  - detail: detail page / lightbox. Videos get controls; embeds load on click.
+ */
+import type { Media } from '../lib/schema';
+import { resolveMedia } from '../lib/media';
+
+interface Props {
+  media: Media;
+  mode?: 'tile' | 'hero' | 'detail';
+  sizes?: string;
+  eager?: boolean;
+}
+
+const { media, mode = 'detail', sizes, eager = false } = Astro.props;
+const r = await resolveMedia(media, sizes ? { sizes } : {});
+const ratio = `${r.width} / ${r.height}`;
+const loading = eager ? 'eager' : 'lazy';
+---
+
+{
+  r.type === 'image' && (
+    <div class="media" style={`aspect-ratio: ${ratio}`}>
+      <img src={r.src} srcset={r.srcset} sizes={r.sizes} width={r.width} height={r.height} alt={r.alt} loading={loading} decoding="async" fetchpriority={eager ? 'high' : undefined} />
+    </div>
+  )
+}
+
+{
+  r.type === 'animated' && (
+    <div class="media media--animated" data-animated={mode === 'tile' ? 'hover' : 'visible'} style={`aspect-ratio: ${ratio}`}>
+      {r.poster && <img class="media__poster" src={r.poster.src} srcset={r.poster.srcset} sizes={r.poster.sizes} width={r.width} height={r.height} alt={r.alt} loading={loading} decoding="async" />}
+      <img class="media__anim" data-src={r.src} width={r.width} height={r.height} alt={r.poster ? '' : r.alt} aria-hidden={r.poster ? 'true' : undefined} decoding="async" />
+      {mode === 'tile' && <span class="media__badge" aria-hidden="true">▶</span>}
+      {mode !== 'tile' && r.poster && (
+        <button type="button" class="media__toggle" data-anim-toggle hidden>
+          Play animation
+        </button>
+      )}
+    </div>
+  )
+}
+
+{
+  r.type === 'video' && (
+    <div class:list={['media', 'media--video', `media--${mode}`]} style={`aspect-ratio: ${ratio}`}>
+      <video
+        data-video={mode === 'detail' ? 'controlled' : mode === 'hero' ? 'hero' : 'hover'}
+        poster={r.poster.src}
+        width={r.width}
+        height={r.height}
+        muted={mode !== 'detail'}
+        loop={mode !== 'detail' || r.loop}
+        controls={mode === 'detail'}
+        playsinline
+        preload={mode === 'hero' ? 'metadata' : 'none'}
+        aria-label={r.alt}
+      >
+        <source src={r.src} type={r.mimeType} />
+      </video>
+      {mode === 'tile' && <span class="media__badge" aria-hidden="true">▶</span>}
+    </div>
+  )
+}
+
+{
+  r.type === 'embed' && (
+    <div class="media media--embed" data-embed style={`aspect-ratio: ${ratio}`}>
+      {r.poster && <img class="media__poster" src={r.poster.src} srcset={r.poster.srcset} sizes={r.poster.sizes} width={r.width} height={r.height} alt={r.alt} loading={loading} decoding="async" />}
+      {mode === 'detail' ? (
+        <>
+          <button type="button" class="media__embed-play" data-embed-url={r.embedUrl} data-embed-title={r.alt}>
+            <span aria-hidden="true">▶</span>
+            <span class="visually-hidden">Play video ({r.provider})</span>
+          </button>
+          <a class="media__fallback" href={r.pageUrl} target="_blank" rel="noopener noreferrer">
+            Watch on {r.provider === 'youtube' ? 'YouTube' : 'Vimeo'}
+          </a>
+        </>
+      ) : (
+        <span class="media__badge" aria-hidden="true">▶</span>
+      )}
+    </div>
+  )
+}
+
+<style is:global>
+  .media { position: relative; width: 100%; overflow: hidden; background: var(--color-surface); border-radius: var(--radius-sm); }
+  .media img, .media video { width: 100%; height: 100%; object-fit: contain; }
+  .media__poster, .media__anim { position: absolute; inset: 0; }
+  .media__anim { opacity: 0; transition: opacity var(--dur-fast) var(--ease-out); }
+  .media__anim[src] { opacity: 1; }
+  .media--video video { position: absolute; inset: 0; }
+  .media__badge {
+    position: absolute; right: var(--space-3); bottom: var(--space-3); width: 2rem; height: 2rem;
+    display: grid; place-items: center; border-radius: 50%; font-size: var(--text-xs); line-height: 1; padding-left: 2px;
+    background: var(--color-overlay); color: var(--color-on-overlay); pointer-events: none;
+    transition: opacity var(--dur-fast) var(--ease-out);
+  }
+  .media.is-playing .media__badge { opacity: 0; }
+  .media__toggle {
+    position: absolute; left: var(--space-3); bottom: var(--space-3); z-index: 1; padding: var(--space-2) var(--space-4);
+    border: 0; border-radius: var(--radius-pill); background: var(--color-overlay); color: var(--color-on-overlay); font-size: var(--text-sm);
+  }
+  .media__toggle[hidden] { display: none; }
+  .media__embed-play {
+    position: absolute; inset: 0; width: 100%; border: 0; background: rgb(0 0 0 / 0.25); color: #fff; display: grid; place-items: center; font-size: var(--text-3xl);
+    transition: background-color var(--dur-fast) var(--ease-out);
+  }
+  .media__embed-play:hover { background: rgb(0 0 0 / 0.1); }
+  .media__fallback { position: absolute; right: var(--space-3); bottom: var(--space-3); z-index: 1; padding: var(--space-1) var(--space-3); font-size: var(--text-xs); border-radius: var(--radius-pill); background: var(--color-overlay); color: var(--color-on-overlay); }
+  .media__fallback:hover { color: var(--color-on-overlay); }
+  .media--embed iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+</style>
