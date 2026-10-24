@@ -60,3 +60,12 @@ You add new work by editing files only. No code changes are needed.
 Site text (hero, about, contact, social links, SEO), categories and the order and visibility of home sections live in `content/site.json`. Edit them the same way.
 
 **Replacing the placeholders:** every sample entry has `"placeholder": true`. Edit it or delete it, then delete the files in `content/media/placeholder/` that are no longer referenced.
+
+## Deploy
+
+The site is published to GitHub Pages at https://echo1560.github.io/CesartPortfolio/ (base path `/CesartPortfolio/`).
+
+- **Deploy:** every push to `main` runs `.github/workflows/deploy.yml` (`npm ci && npm run build`, upload `dist/`, `actions/deploy-pages`). It can also be run manually from the Actions tab (`workflow_dispatch`). Pages source is set to **GitHub Actions** in repo settings.
+- **PR check:** `.github/workflows/ci.yml` runs type check, unit tests, content validation, build and e2e on every pull request.
+- **Secrets:** none needed for v1. Future secrets go in GitHub's secret store, with names listed in `.env.example`.
+- **Roll back:** revert the bad commit on `main` (`git revert <sha>` via PR); the deploy workflow redeploys the previous good state. For an immediate rollback, re-run the deploy workflow from the last good commit in the Actions tab.
