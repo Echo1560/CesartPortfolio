@@ -24,3 +24,7 @@ coverage/
 .idea/
 .DS_Store
 Thumbs.db
+
+# e2e fixture build / lighthouse
+.e2e-fixture/
+.lighthouseci/
