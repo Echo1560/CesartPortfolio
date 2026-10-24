@@ -1,0 +1,10 @@
+[
+  { "id": "alpha", "slug": "alpha", "title": "Alpha", "year": 2021, "categoryId": "illustration", "tags": ["ink"], "description": "A", "featured": true,
+    "media": { "type": "image", "src": "alpha.jpg", "alt": "Alpha image", "width": 800, "height": 600 } },
+  { "id": "beta", "slug": "beta", "title": "Beta", "year": 2023, "categoryId": "animation", "tags": [], "description": "B", "featured": true,
+    "media": { "type": "video", "src": "beta.mp4", "alt": "Beta clip", "width": 1280, "height": 720, "poster": "beta.jpg" } },
+  { "id": "gamma", "slug": "gamma", "title": "Gamma", "year": 2024, "categoryId": "illustration", "tags": [], "description": "C",
+    "media": { "type": "image", "src": "gamma.jpg", "alt": "Gamma image", "width": 800, "height": 600 } },
+  { "id": "delta", "slug": "delta", "title": "Delta", "categoryId": "animation", "tags": [], "description": "D", "order": 1,
+    "media": { "type": "animated", "src": "delta.gif", "alt": "Delta loop", "width": 400, "height": 400, "loop": true } }
+]
