@@ -36,22 +36,75 @@
     "email": "hello@example.com",
     "ctaLabel": "Commissions (placeholder)",
     "socials": [
-      { "id": "instagram", "label": "Instagram", "url": "https://www.instagram.com/" },
-      { "id": "behance", "label": "Behance", "url": "https://www.behance.net/" },
-      { "id": "vimeo", "label": "Vimeo", "url": "https://vimeo.com/" }
+      {
+        "id": "instagram",
+        "label": "Instagram",
+        "url": "https://www.instagram.com/"
+      },
+      {
+        "id": "behance",
+        "label": "Behance",
+        "url": "https://www.behance.net/"
+      },
+      {
+        "id": "vimeo",
+        "label": "Vimeo",
+        "url": "https://vimeo.com/"
+      }
     ]
   },
   "categories": [
-    { "id": "illustration", "slug": "illustration", "label": "Illustration" },
-    { "id": "animation", "slug": "animation", "label": "Animation" }
+    {
+      "id": "illustration",
+      "slug": "illustration",
+      "label": "Illustration"
+    },
+    {
+      "id": "animation",
+      "slug": "animation",
+      "label": "Animation"
+    }
   ],
   "layout": {
     "sections": [
-      { "id": "hero", "visible": true },
-      { "id": "featured", "visible": true, "options": { "workIds": ["placeholder-illustration-01", "placeholder-animation-01"], "limit": 6 } },
-      { "id": "grid", "visible": true, "options": { "columns": { "sm": 1, "md": 2, "lg": 3 }, "masonry": true, "showFilters": true } },
-      { "id": "about", "visible": true },
-      { "id": "contact", "visible": true }
+      {
+        "id": "hero",
+        "visible": true
+      },
+      {
+        "id": "featured",
+        "visible": true,
+        "options": {
+          "workIds": [
+            "placeholder-illustration-01",
+            "placeholder-animation-01",
+            "placeholder-illustration-02",
+            "placeholder-animation-02"
+          ],
+          "limit": 6
+        }
+      },
+      {
+        "id": "grid",
+        "visible": true,
+        "options": {
+          "columns": {
+            "sm": 1,
+            "md": 2,
+            "lg": 3
+          },
+          "masonry": true,
+          "showFilters": true
+        }
+      },
+      {
+        "id": "about",
+        "visible": true
+      },
+      {
+        "id": "contact",
+        "visible": true
+      }
     ]
   }
 }

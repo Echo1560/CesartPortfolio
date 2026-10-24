@@ -5,12 +5,21 @@
     "title": "Placeholder Illustration 01",
     "year": 2026,
     "categoryId": "illustration",
-    "tags": ["placeholder", "editorial"],
-    "description": "Placeholder description. Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
+    "tags": [
+      "placeholder",
+      "editorial"
+    ],
+    "description": "Placeholder description. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Duis aute irure dolor in reprehenderit in voluptate velit esse.",
     "featured": true,
     "order": 1,
     "placeholder": true,
-    "media": { "type": "image", "src": "placeholder/illustration-01.jpg", "alt": "Placeholder illustration: grey portrait-format frame labelled Illustration 01", "width": 1600, "height": 2000 }
+    "media": {
+      "type": "image",
+      "src": "placeholder/illustration-01.jpg",
+      "alt": "Placeholder illustration: grey portrait-format frame labelled Illustration 01",
+      "width": 1600,
+      "height": 2000
+    }
   },
   {
     "id": "placeholder-animation-01",
@@ -18,11 +27,224 @@
     "title": "Placeholder Loop 01",
     "year": 2026,
     "categoryId": "animation",
-    "tags": ["placeholder", "loop"],
-    "description": "Placeholder description. A short looping animation. Lorem ipsum dolor sit amet.",
+    "tags": [
+      "placeholder",
+      "loop"
+    ],
+    "description": "Placeholder description. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Duis aute irure dolor in reprehenderit in voluptate velit esse.",
     "featured": true,
     "order": 2,
     "placeholder": true,
-    "media": { "type": "animated", "src": "placeholder/animation-01.webp", "poster": "placeholder/animation-01-poster.jpg", "alt": "Placeholder loop: a grey circle travels around an ellipse", "width": 480, "height": 480, "loop": true }
+    "media": {
+      "type": "animated",
+      "src": "placeholder/animation-01.webp",
+      "poster": "placeholder/animation-01-poster.jpg",
+      "alt": "Placeholder loop: a grey circle travels around an ellipse",
+      "width": 480,
+      "height": 480,
+      "loop": true
+    }
+  },
+  {
+    "id": "placeholder-illustration-02",
+    "slug": "placeholder-illustration-02",
+    "title": "Placeholder Illustration 02",
+    "year": 2026,
+    "categoryId": "illustration",
+    "tags": [
+      "placeholder",
+      "landscape"
+    ],
+    "description": "Placeholder description. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Duis aute irure dolor in reprehenderit in voluptate velit esse.",
+    "featured": true,
+    "order": 3,
+    "placeholder": true,
+    "media": {
+      "type": "image",
+      "src": "placeholder/illustration-02.jpg",
+      "alt": "Placeholder illustration: grey landscape-format frame labelled Illustration 02",
+      "width": 2400,
+      "height": 1600
+    }
+  },
+  {
+    "id": "placeholder-animation-02",
+    "slug": "placeholder-animation-02",
+    "title": "Placeholder Short 02",
+    "year": 2025,
+    "categoryId": "animation",
+    "tags": [
+      "placeholder",
+      "short film"
+    ],
+    "description": "Placeholder description. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
+    "featured": true,
+    "order": 4,
+    "placeholder": true,
+    "media": {
+      "type": "video",
+      "src": "placeholder/animation-02.mp4",
+      "poster": "placeholder/animation-02-poster.jpg",
+      "alt": "Placeholder video: a grey circle moves around an ellipse for two seconds",
+      "width": 960,
+      "height": 540,
+      "loop": false
+    }
+  },
+  {
+    "id": "placeholder-illustration-03",
+    "slug": "placeholder-illustration-03",
+    "title": "Placeholder Illustration 03",
+    "year": 2025,
+    "categoryId": "illustration",
+    "tags": [
+      "placeholder",
+      "character"
+    ],
+    "description": "Placeholder description. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis aute irure dolor in reprehenderit in voluptate velit esse.",
+    "placeholder": true,
+    "media": {
+      "type": "image",
+      "src": "placeholder/illustration-03.jpg",
+      "alt": "Placeholder illustration: grey square frame labelled Illustration 03",
+      "width": 1800,
+      "height": 1800
+    }
+  },
+  {
+    "id": "placeholder-illustration-04",
+    "slug": "placeholder-illustration-04",
+    "title": "Placeholder Illustration 04",
+    "year": 2025,
+    "categoryId": "illustration",
+    "tags": [
+      "placeholder",
+      "poster"
+    ],
+    "description": "Placeholder description. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis aute irure dolor in reprehenderit in voluptate velit esse.",
+    "placeholder": true,
+    "media": {
+      "type": "image",
+      "src": "placeholder/illustration-04.jpg",
+      "alt": "Placeholder illustration: tall grey frame labelled Illustration 04",
+      "width": 1400,
+      "height": 2100
+    }
+  },
+  {
+    "id": "placeholder-animation-03",
+    "slug": "placeholder-animation-03",
+    "title": "Placeholder Storyboard 03",
+    "year": 2025,
+    "categoryId": "animation",
+    "tags": [
+      "placeholder",
+      "storyboard"
+    ],
+    "description": "Placeholder description. Ut enim ad minim veniam, quis nostrud exercitation ullamco. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+    "placeholder": true,
+    "media": {
+      "type": "image",
+      "src": "placeholder/animation-03.jpg",
+      "alt": "Placeholder storyboard frame: grey 4:3 frame labelled Storyboard frame",
+      "width": 2000,
+      "height": 1500
+    }
+  },
+  {
+    "id": "placeholder-illustration-05",
+    "slug": "placeholder-illustration-05",
+    "title": "Placeholder Illustration 05",
+    "year": 2024,
+    "categoryId": "illustration",
+    "tags": [
+      "placeholder",
+      "landscape"
+    ],
+    "description": "Placeholder description. Duis aute irure dolor in reprehenderit in voluptate velit esse. Duis aute irure dolor in reprehenderit in voluptate velit esse.",
+    "placeholder": true,
+    "media": {
+      "type": "image",
+      "src": "placeholder/illustration-05.jpg",
+      "alt": "Placeholder illustration: wide grey frame labelled Illustration 05",
+      "width": 2400,
+      "height": 1350
+    }
+  },
+  {
+    "id": "placeholder-illustration-06",
+    "slug": "placeholder-illustration-06",
+    "title": "Placeholder Series 06",
+    "year": 2024,
+    "categoryId": "illustration",
+    "tags": [
+      "placeholder",
+      "series"
+    ],
+    "description": "Placeholder description. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+    "gallery": [
+      {
+        "type": "image",
+        "src": "placeholder/illustration-06-detail-a.jpg",
+        "alt": "Placeholder detail crop labelled Detail A",
+        "width": 1600,
+        "height": 1600
+      },
+      {
+        "type": "image",
+        "src": "placeholder/illustration-06-detail-b.jpg",
+        "alt": "Placeholder detail crop labelled Detail B",
+        "width": 2000,
+        "height": 1500
+      }
+    ],
+    "placeholder": true,
+    "media": {
+      "type": "image",
+      "src": "placeholder/illustration-06.jpg",
+      "alt": "Placeholder illustration: grey portrait-format frame labelled Illustration 06",
+      "width": 1500,
+      "height": 2000
+    }
+  },
+  {
+    "id": "placeholder-animation-04",
+    "slug": "placeholder-animation-04",
+    "title": "Placeholder Turnaround 04",
+    "year": 2024,
+    "categoryId": "animation",
+    "tags": [
+      "placeholder",
+      "character"
+    ],
+    "description": "Placeholder description. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+    "placeholder": true,
+    "media": {
+      "type": "image",
+      "src": "placeholder/animation-04.jpg",
+      "alt": "Placeholder character turnaround: tall grey frame labelled Character turnaround",
+      "width": 1080,
+      "height": 1920
+    }
+  },
+  {
+    "id": "placeholder-illustration-07",
+    "slug": "placeholder-illustration-07",
+    "title": "Placeholder Illustration 07",
+    "year": 2023,
+    "categoryId": "illustration",
+    "tags": [
+      "placeholder",
+      "editorial"
+    ],
+    "description": "Placeholder description. Ut enim ad minim veniam, quis nostrud exercitation ullamco. Duis aute irure dolor in reprehenderit in voluptate velit esse.",
+    "placeholder": true,
+    "media": {
+      "type": "image",
+      "src": "placeholder/illustration-07.jpg",
+      "alt": "Placeholder illustration: grey 5:4 frame labelled Illustration 07",
+      "width": 2000,
+      "height": 1600
+    }
   }
 ]
