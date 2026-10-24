@@ -1,0 +1,28 @@
+---
+import type { Site } from '../lib/schema';
+import MediaView from './MediaView.astro';
+
+interface Props {
+  hero: Site['hero'];
+}
+const { hero } = Astro.props;
+---
+
+<section class="hero" aria-labelledby="hero-title">
+  <div class="hero__media">
+    <MediaView media={hero.media} mode="hero" eager sizes="100vw" />
+  </div>
+  <div class="container hero__text reveal">
+    <h1 id="hero-title" class="hero__title">{hero.heading}</h1>
+    {hero.subheading && <p class="hero__sub">{hero.subheading}</p>}
+  </div>
+</section>
+
+<style is:global>
+  .hero { position: relative; }
+  .hero__media .media { border-radius: 0; max-height: 78vh; aspect-ratio: auto; height: min(78vh, 56.25vw); min-height: 18rem; }
+  .hero__media .media video, .hero__media .media img { object-fit: cover; }
+  .hero__text { padding-block: var(--space-6) var(--space-2); }
+  .hero__title { font-size: var(--text-4xl); }
+  .hero__sub { font-size: var(--text-lg); color: var(--color-muted); max-width: var(--measure); margin-top: var(--space-3); }
+</style>

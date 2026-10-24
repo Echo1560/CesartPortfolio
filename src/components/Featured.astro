@@ -1,0 +1,32 @@
+---
+import type { Category, Work } from '../lib/schema';
+import WorkTile from './WorkTile.astro';
+
+interface Props {
+  works: Work[];
+  categories: Category[];
+}
+const { works, categories } = Astro.props;
+---
+
+{
+  works.length > 0 && (
+    <section class="section featured" id="featured" aria-labelledby="featured-title">
+      <div class="container">
+        <h2 id="featured-title" class="section__title reveal">Featured</h2>
+        <ul class="featured__grid" data-tile-group>
+          {works.map((w, i) => (
+            <WorkTile work={w} category={categories.find((c) => c.id === w.categoryId)} index={i} sizes="(min-width: 600px) 50vw, 100vw" />
+          ))}
+        </ul>
+      </div>
+    </section>
+  )
+}
+
+<style is:global>
+  .featured__grid { list-style: none; margin: 0; padding: 0; display: grid; gap: 0 var(--grid-gap); align-items: start; }
+  @media (min-width: 600px) {
+    .featured__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+</style>

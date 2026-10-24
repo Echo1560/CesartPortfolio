@@ -1,0 +1,39 @@
+---
+import type { Site } from '../lib/schema';
+
+interface Props {
+  contact: Site['contact'];
+}
+const { contact } = Astro.props;
+---
+
+<section class="section contact" id="contact" aria-labelledby="contact-title">
+  <div class="container reveal">
+    <h2 id="contact-title" class="section__title">{contact.heading}</h2>
+    <p class="contact__email">
+      <a href={`mailto:${contact.email}`} data-track="contact_click" data-track-source="email">{contact.email}</a>
+    </p>
+    <p>
+      <a class="btn" href={`mailto:${contact.email}`} data-track="contact_click" data-track-source="contact-cta">{contact.ctaLabel}</a>
+    </p>
+    {
+      contact.socials.length > 0 && (
+        <ul class="contact__socials" aria-label="Social links">
+          {contact.socials.map((s) => (
+            <li>
+              <a href={s.url} target="_blank" rel="noopener noreferrer" data-track="contact_click" data-track-source={s.id}>
+                {s.label}
+              </a>
+            </li>
+          ))}
+        </ul>
+      )
+    }
+  </div>
+</section>
+
+<style is:global>
+  .contact { border-top: 1px solid var(--color-border); }
+  .contact__email { font-family: var(--font-display); font-size: var(--text-3xl); margin-bottom: var(--space-5); overflow-wrap: anywhere; }
+  .contact__socials { display: flex; flex-wrap: wrap; gap: var(--space-5); list-style: none; padding: 0; margin: var(--space-6) 0 0; }
+</style>

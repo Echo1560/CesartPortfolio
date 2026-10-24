@@ -1,0 +1,78 @@
+---
+import type { Category, GridOptions, Work } from '../lib/schema';
+import WorkTile from './WorkTile.astro';
+
+interface Props {
+  works: Work[];
+  categories: Category[];
+  options?: GridOptions;
+  ctaLabel: string;
+  contactVisible: boolean;
+}
+const { works, categories, options = {}, ctaLabel, contactVisible } = Astro.props;
+const cols = options.columns ?? { sm: 1, md: 2, lg: 3 };
+const masonry = options.masonry ?? true;
+const showFilters = options.showFilters ?? true;
+---
+
+<section class="section grid-section" id="work" aria-labelledby="work-title">
+  <div class="container">
+    <h2 id="work-title" class="section__title reveal">Work</h2>
+    {
+      showFilters && (
+        <div class="filters reveal" role="group" aria-label="Filter work by category" data-filters>
+          <button type="button" class="chip" data-filter="all" aria-pressed="true">All</button>
+          {categories.map((c) => (
+            <button type="button" class="chip" data-filter={c.slug} aria-pressed="false">
+              {c.label}
+            </button>
+          ))}
+        </div>
+      )
+    }
+    <p class="visually-hidden" role="status" aria-live="polite" data-filter-status></p>
+    <ul
+      class:list={['work-grid', masonry && 'work-grid--masonry']}
+      style={`--cols-sm: ${cols.sm}; --cols-md: ${cols.md}; --cols-lg: ${cols.lg}`}
+      data-tile-group
+      data-work-grid
+    >
+      {works.map((w, i) => <WorkTile work={w} category={categories.find((c) => c.id === w.categoryId)} index={i} />)}
+    </ul>
+    <p class="empty" data-empty hidden>No work in this category yet.</p>
+    {
+      contactVisible && (
+        <aside class="cta-band reveal" aria-label="Commissions">
+          <p>Have a project in mind?</p>
+          <a class="btn" href="#contact" data-track="contact_click" data-track-source="cta-band">{ctaLabel}</a>
+        </aside>
+      )
+    }
+  </div>
+</section>
+
+<style is:global>
+  .filters { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-6); }
+  .chip {
+    min-height: 2.5rem; padding: var(--space-1) var(--space-4); border-radius: var(--radius-pill);
+    border: 1px solid var(--color-border); background: transparent; font-size: var(--text-sm);
+    transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+  }
+  .chip:hover { border-color: var(--color-accent); }
+  .chip[aria-pressed='true'] { background: var(--color-text); color: var(--color-bg); border-color: var(--color-text); }
+
+  .work-grid { list-style: none; margin: 0; padding: 0; display: grid; gap: 0 var(--grid-gap); align-items: start; grid-template-columns: repeat(var(--cols-sm, 1), minmax(0, 1fr)); }
+  .work-grid--masonry { display: block; column-count: var(--cols-sm, 1); column-gap: var(--grid-gap); }
+  @media (min-width: 600px) {
+    .work-grid { grid-template-columns: repeat(var(--cols-md, 2), minmax(0, 1fr)); }
+    .work-grid--masonry { column-count: var(--cols-md, 2); }
+  }
+  @media (min-width: 1024px) {
+    .work-grid { grid-template-columns: repeat(var(--cols-lg, 3), minmax(0, 1fr)); }
+    .work-grid--masonry { column-count: var(--cols-lg, 3); }
+  }
+  .empty { text-align: center; color: var(--color-muted); padding-block: var(--space-7); }
+  .empty[hidden] { display: none; }
+  .cta-band { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-4); margin-top: var(--space-7); padding: var(--space-5) var(--space-6); border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); }
+  .cta-band p { margin: 0; font-family: var(--font-display); font-size: var(--text-xl); }
+</style>
