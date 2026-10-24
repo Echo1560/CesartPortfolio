@@ -1,0 +1,28 @@
+[
+  {
+    "id": "placeholder-illustration-01",
+    "slug": "placeholder-illustration-01",
+    "title": "Placeholder Illustration 01",
+    "year": 2026,
+    "categoryId": "illustration",
+    "tags": ["placeholder", "editorial"],
+    "description": "Placeholder description. Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
+    "featured": true,
+    "order": 1,
+    "placeholder": true,
+    "media": { "type": "image", "src": "placeholder/illustration-01.jpg", "alt": "Placeholder illustration: grey portrait-format frame labelled Illustration 01", "width": 1600, "height": 2000 }
+  },
+  {
+    "id": "placeholder-animation-01",
+    "slug": "placeholder-animation-01",
+    "title": "Placeholder Loop 01",
+    "year": 2026,
+    "categoryId": "animation",
+    "tags": ["placeholder", "loop"],
+    "description": "Placeholder description. A short looping animation. Lorem ipsum dolor sit amet.",
+    "featured": true,
+    "order": 2,
+    "placeholder": true,
+    "media": { "type": "animated", "src": "placeholder/animation-01.webp", "poster": "placeholder/animation-01-poster.jpg", "alt": "Placeholder loop: a grey circle travels around an ellipse", "width": 480, "height": 480, "loop": true }
+  }
+]
