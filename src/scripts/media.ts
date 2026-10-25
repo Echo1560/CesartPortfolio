@@ -23,6 +23,13 @@ function shouldPlay(el: HTMLElement): boolean {
 }
 
 function setAnimated(box: HTMLElement, play: boolean): void {
+  const video = box.querySelector<HTMLVideoElement>('.media__video');
+  if (video) {
+    if (play) void video.play().catch(() => {});
+    else video.pause();
+    box.classList.toggle('is-playing', play);
+    return;
+  }
   const img = box.querySelector<HTMLImageElement>('.media__anim');
   if (!img) return;
   if (play && !img.hasAttribute('src')) img.src = img.dataset.src ?? '';
