@@ -17,6 +17,13 @@
   --color-overlay: rgb(10 10 10 / 0.88);
   --color-on-overlay: #f6f5f2;
   --color-focus: #1a5fd0;
+  --color-on-media: #ffffff;
+  --color-scrim: rgb(0 0 0 / 0.1);
+  --color-scrim-medium: rgb(0 0 0 / 0.25);
+  --color-scrim-strong: rgb(0 0 0 / 0.7);
+  --color-overlay-btn: rgb(0 0 0 / 0.4);
+  --color-overlay-btn-hover: rgb(255 255 255 / 0.2);
+  --color-overlay-border: rgb(255 255 255 / 0.3);
 
   /* Type */
   --font-display: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;

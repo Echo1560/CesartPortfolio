@@ -39,10 +39,10 @@ const { works, categories } = Astro.props;
   .lightbox a { color: var(--color-on-overlay); }
   .lightbox__bar { position: absolute; top: 0; left: 0; right: 0; display: flex; justify-content: space-between; align-items: center; padding: var(--space-3) var(--gutter); z-index: 2; font-size: var(--text-sm); }
   .lightbox__btn {
-    width: 2.75rem; height: 2.75rem; border-radius: 50%; border: 1px solid rgb(255 255 255 / 0.3); background: rgb(0 0 0 / 0.4); color: var(--color-on-overlay); font-size: var(--text-lg); line-height: 1;
+    width: 2.75rem; height: 2.75rem; border-radius: 50%; border: 1px solid var(--color-overlay-border); background: var(--color-overlay-btn); color: var(--color-on-overlay); font-size: var(--text-lg); line-height: 1;
     transition: background-color var(--dur-fast) var(--ease-out);
   }
-  .lightbox__btn:hover { background: rgb(255 255 255 / 0.2); }
+  .lightbox__btn:hover { background: var(--color-overlay-btn-hover); }
   .lightbox__nav { position: absolute; top: 50%; translate: 0 -50%; z-index: 2; }
   .lightbox__nav--prev { left: var(--space-3); }
   .lightbox__nav--next { right: var(--space-3); }

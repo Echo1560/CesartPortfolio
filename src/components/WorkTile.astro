@@ -31,7 +31,7 @@ const { work, category, index = 0, sizes } = Astro.props;
   .tile__link:hover .media, .tile__link:focus-visible .media { transform: scale(var(--hover-scale)); }
   .tile__caption {
     position: absolute; inset: auto 0 0 0; display: flex; flex-direction: column; padding: var(--space-5) var(--space-4) var(--space-3);
-    background: linear-gradient(to top, rgb(0 0 0 / 0.7), transparent); color: #fff; opacity: 0;
+    background: linear-gradient(to top, var(--color-scrim-strong), transparent); color: var(--color-on-media); opacity: 0;
     transition: opacity var(--dur-fast) var(--ease-out);
   }
   .tile__link:hover .tile__caption, .tile__link:focus-visible .tile__caption { opacity: 1; }
