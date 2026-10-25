@@ -1,10 +1,15 @@
 /**
- * Data-access layer. The ONLY module that reads `content/*.json`.
+ * Data-access layer. The ONLY module that reads content, from `content/*.json`
+ * or from Supabase.
  *
  * Components and pages call these functions and never import the JSON files
- * directly. A future backend replaces the body of `load()` (for example with a
- * fetch to an API at build time) and nothing else has to change, because the
- * function signatures and the returned types stay the same.
+ * directly. `load()` picks the source from `CONTENT_SOURCE` (docs/V2-CONTRACTS.md
+ * §8); the function signatures and the returned types are the same for both.
+ *
+ *   local (default)  content/*.json + content/media/
+ *   supabase         the live publish snapshot, fetched with the anon key. Media
+ *                    must already be in content/media/: `npm run build` runs
+ *                    scripts/prepare-content.ts first, which downloads it.
  *
  * Runs at build time only (Astro frontmatter, `getStaticPaths`). Do not import
  * it from client-side scripts.
@@ -14,11 +19,13 @@ import { join } from 'node:path';
 import { marked } from 'marked';
 import siteJson from '../../content/site.json';
 import worksJson from '../../content/works.json';
+import { contentSource, fetchPublishedContent, supabaseConfig } from './content-source';
 import type { Category, Layout, Site, Work } from './schema';
 import { validateContent, type ValidContent } from './validate';
 
 export type { Category, FeaturedOptions, GridOptions, Layout, Media, Section, SectionId, Site, Social, Work } from './schema';
 export { ContentError } from './validate';
+export { ContentSourceError } from './content-source';
 
 export interface WorkFilter {
   categoryId?: string;
@@ -34,9 +41,18 @@ function mediaExists(path: string): boolean {
 
 let cache: Promise<ValidContent> | undefined;
 
-/** Loads and validates all content once per build. Throws `ContentError` on invalid content. */
+async function fromSource(): Promise<ValidContent> {
+  if (contentSource() === 'local') return validateContent(siteJson, worksJson, mediaExists);
+  const { site, works } = await fetchPublishedContent(supabaseConfig());
+  return validateContent(site, works, mediaExists);
+}
+
+/**
+ * Loads and validates all content once per build. Throws `ContentError` on
+ * invalid content and `ContentSourceError` when Supabase cannot be read.
+ */
 function load(): Promise<ValidContent> {
-  cache ??= Promise.resolve().then(() => validateContent(siteJson, worksJson, mediaExists));
+  cache ??= fromSource();
   return cache;
 }
 
