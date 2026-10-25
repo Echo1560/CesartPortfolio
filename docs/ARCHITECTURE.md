@@ -11,6 +11,8 @@ content/media/**   ┘     (zod + cross-checks)    (getSite, getWorks…)       
                                      src/lib/track.ts (track)  ◄── client scripts
 ```
 
+> **v2 (backend + dashboard):** the database schema, how rows map to the types below, storage, Edge Functions, event payloads and the `load()` source switch are specified in [`V2-CONTRACTS.md`](V2-CONTRACTS.md).
+
 ## Content schema (`src/lib/schema.ts`)
 
 Zod schemas and the TypeScript types inferred from them. These are the only definition of the content shape.

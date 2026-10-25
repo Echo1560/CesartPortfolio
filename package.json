@@ -13,7 +13,14 @@
     "check": "astro check",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "validate:content": "tsx scripts/validate-content.ts"
+    "validate:content": "tsx scripts/validate-content.ts",
+    "db:start": "supabase start",
+    "db:stop": "supabase stop",
+    "db:reset": "supabase db reset",
+    "db:test": "supabase test db",
+    "db:test:api": "node scripts/db-api-smoke.mjs",
+    "db:seed:generate": "tsx scripts/generate-seed.ts",
+    "db:seed:check": "tsx scripts/generate-seed.ts && git diff --exit-code -- supabase/seed.sql supabase/tests/database/01_seed_matches_content.test.sql"
   },
   "dependencies": {
     "astro": "^7.4.2",
@@ -27,6 +34,7 @@
     "@lhci/cli": "^0.15.1",
     "@playwright/test": "^1.64.1",
     "@types/node": "^22.20.5",
+    "supabase": "^2.122.0",
     "tsx": "^4.23.15",
     "typescript": "^6.0.3",
     "vitest": "^5.0.5"
