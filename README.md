@@ -69,3 +69,15 @@ The site is published to GitHub Pages at https://echo1560.github.io/CesartPortfo
 - **PR check:** `.github/workflows/ci.yml` runs type check, unit tests, content validation, build and e2e on every pull request.
 - **Secrets:** none needed for v1. Future secrets go in GitHub's secret store, with names listed in `.env.example`.
 - **Roll back:** revert the bad commit on `main` (`git revert <sha>` via PR); the deploy workflow redeploys the previous good state. For an immediate rollback, re-run the deploy workflow from the last good commit in the Actions tab.
+
+## Backend (v2, local Supabase)
+
+The v2 database lives in `supabase/`: migrations, seed, RLS and storage policies, and pgTAP tests. It needs Docker.
+
+```sh
+npm run db:start   # local Supabase with migrations + seed
+npm run db:test    # pgTAP RLS/storage/seed tests
+npm run db:test:api
+```
+
+Contracts (schema, mapping to `schema.ts`, storage, Edge Functions, events, data layer): `docs/V2-CONTRACTS.md`.

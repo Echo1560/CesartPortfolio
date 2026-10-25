@@ -1,0 +1,21 @@
+-- Undo 20261025000100_core_schema.sql. Deletes ALL draft content and editors.
+drop table if exists public.layout_featured_works;
+drop table if exists public.layout;
+drop trigger if exists media_placements_check_kind on public.media_placements;
+drop function if exists public.check_placement_media_kind();
+drop table if exists public.media_placements;
+drop table if exists public.works;
+drop table if exists public.categories;
+drop table if exists public.socials;
+drop table if exists public.site;
+drop table if exists public.media;
+drop function if exists public.is_editor();
+drop table if exists public.editors;
+drop domain if exists public.media_path;
+drop domain if exists public.kebab_id;
+drop type if exists public.section_id;
+drop type if exists public.media_slot;
+drop type if exists public.embed_provider;
+drop type if exists public.media_type;
+drop type if exists public.work_status;
+drop type if exists public.editor_role;
