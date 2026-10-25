@@ -302,6 +302,8 @@ All functions live in `supabase/functions/<name>/` (Deno). They answer JSON as `
 
 CORS: allow `https://echo1560.github.io` and `http://localhost:4321` / `http://127.0.0.1:4321`. `Access-Control-Allow-Headers: authorization, apikey, content-type`.
 
+The gateway JWT check is off for every function (`verify_jwt = false` in `supabase/config.toml`). Each function verifies the caller itself with `auth.getUser(jwt)` and then `is_editor()` / `is_owner()` **with that JWT**, so every error uses the envelope above. Implementation and API reference: `supabase/functions/README.md`.
+
 | Code | HTTP | Meaning |
 |---|---|---|
 | `bad_request` | 400 | invalid JSON or fields |
@@ -313,6 +315,7 @@ CORS: allow `https://echo1560.github.io` and `http://localhost:4321` / `http://1
 | `payload_too_large` | 413 | body over the limit |
 | `unprocessable` | 422 | content cannot be published |
 | `rate_limited` | 429 | (`invite-editor` only) |
+| `internal_error` | 500 | server misconfigured (missing secret) or unexpected database error; details only in the function log |
 | `upstream_error` | 502 | GitHub or Auth admin call failed |
 
 ### `track` (public, `verify_jwt = false`)
@@ -323,7 +326,8 @@ CORS: allow `https://echo1560.github.io` and `http://localhost:4321` / `http://1
 { "v": 1, "name": "work_open", "path": "/CesartPortfolio/work/foo/", "slug": "foo", "referrer": "https://www.instagram.com/p/x", "props": { "source": "lightbox" } }
 ```
 
-- It always answers **204** for a stored, rate-limited or bot event, so it reveals nothing to the client. It answers 400 for bad input and 413 when the body is too large.
+- It always answers **204** for a stored, rate-limited or bot event, so it reveals nothing to the client. It answers 400 for bad input and 413 when the body is too large. A browser `Origin` that is not on the CORS list gets 403 `forbidden` (requests without `Origin` are accepted).
+- Bots are stored with `device = 'bot'` (stats exclude them, except `stats_devices`).
 - The function validates and normalises the event, then calls `record_event()` (60 events per visitor per minute, 1200 per minute site-wide).
 
 ### `publish` (editor JWT)
@@ -410,6 +414,8 @@ Environment variables (see `.env.example`):
 | `EVENTS_HASH_SECRET` | Supabase secret | **yes** |
 | `MEDIA_VARIANTS` | build (`auto` / `required` / `off`, see §4) | no |
 | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | `npm run db:import` only, from the shell env (never `.env`, which every build loads) | **yes** (the key) |
+| `ADMIN_REDIRECT_URL` | Supabase secret, optional (default `https://echo1560.github.io/CesartPortfolio/admin/`): invite link target | no |
+| `GITHUB_REPOSITORY`, `GITHUB_API_URL` | Supabase secret, optional (defaults `Echo1560/CesartPortfolio`, `https://api.github.com`). Tests point `GITHUB_API_URL` at a mock | no |
 
 **Fail loud.** With `CONTENT_SOURCE=supabase`, the build throws and exits non-zero when any of these happens:
 
@@ -436,6 +442,9 @@ npm run db:test           # pgTAP: structure, seed = content, RLS, storage, even
 npm run db:test:api       # Auth/PostgREST/Storage checks against the running local stack
 npm run db:seed:generate  # rebuild supabase/seed.sql after editing content/
 npm run db:seed:check     # CI: fails if the committed seed is stale
+npm run functions:test    # Edge Functions: db reset, `supabase functions serve`, Deno unit + integration tests (GitHub mocked)
+npm run functions:test:unit  # Edge Functions: Deno unit tests only, no stack needed
+npm run check:bundle      # after a build: fails if dist/ contains a service-role JWT, secret key or token
 ```
 
 If an image in Docker is broken, skip the services the database does not need: `npx supabase start -x studio,postgres-meta,logflare,vector,imgproxy,mailpit`. CI does the same.

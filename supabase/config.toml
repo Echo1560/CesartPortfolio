@@ -420,3 +420,23 @@ enabled = true
 # formatted with uppercase keywords, indent 2, max width 180, trailing commas,
 # and column/key alignment. Set to "null" to emit raw, unformatted SQL.
 # format_options = "{\"keywordCase\":\"upper\",\"indent\":2,\"maxWidth\":180,\"commaStyle\":\"trailing\"}"
+
+# Edge Functions (docs/V2-CONTRACTS.md §6). The gateway JWT check is off for all
+# of them: each function verifies the caller itself (Supabase Auth getUser +
+# is_editor()/is_owner() with the caller's JWT) so every error uses the same
+# {"ok": false, "error": {...}} envelope. `track` is public and
+# `publish-status` POST authenticates the workflow with PUBLISH_STATUS_TOKEN.
+[functions.track]
+verify_jwt = false
+
+[functions.publish]
+verify_jwt = false
+
+[functions.publish-status]
+verify_jwt = false
+
+[functions.invite-editor]
+verify_jwt = false
+
+[functions.remove-editor]
+verify_jwt = false
