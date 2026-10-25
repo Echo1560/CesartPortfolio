@@ -196,6 +196,8 @@ begin
   if not public.is_editor() then
     raise exception 'only editors can publish' using errcode = '42501';
   end if;
+  -- Serialise publishes so two simultaneous clicks cannot both pass the check below.
+  perform pg_advisory_xact_lock(hashtext('public.publish_runs.create'));
   if exists (
     select 1 from public.publish_runs
     where status in ('pending', 'dispatched', 'building') and requested_at > now() - interval '15 minutes'
@@ -220,7 +222,8 @@ begin
 end;
 $$;
 
--- Status updates from the Edge Functions (service role only).
+-- Status updates from the Edge Functions (service role only). Errors: PT404
+-- unknown run, PT409 the run already finished (succeeded/failed).
 create function public.update_publish_run(p_id uuid, p_status public.publish_status, p_github_run_url text default null, p_error text default null)
 returns public.publish_runs
 language plpgsql
@@ -230,6 +233,14 @@ as $$
 declare
   run public.publish_runs;
 begin
+  select * into run from public.publish_runs where id = p_id for update;
+  if not found then
+    raise exception 'publish run % not found', p_id using errcode = 'PT404';
+  end if;
+  -- Finished runs are final: a late or replayed status call cannot reopen them.
+  if run.status in ('succeeded', 'failed') then
+    raise exception 'publish run % is already %', p_id, run.status using errcode = 'PT409';
+  end if;
   update public.publish_runs
      set status = p_status,
          github_run_url = coalesce(p_github_run_url, github_run_url),
@@ -239,9 +250,6 @@ begin
          updated_at = now()
    where id = p_id
   returning * into run;
-  if not found then
-    raise exception 'publish run % not found', p_id using errcode = 'PT404';
-  end if;
   return run;
 end;
 $$;

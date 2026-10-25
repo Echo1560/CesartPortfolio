@@ -270,9 +270,12 @@ create table public.layout (
         and (not options ? 'columns' or (
           jsonb_typeof(options -> 'columns') = 'object'
           and ((options -> 'columns') - 'sm' - 'md' - 'lg') = '{}'::jsonb
-          and (options -> 'columns' ->> 'sm') ~ '^[1-6]$'
-          and (options -> 'columns' ->> 'md') ~ '^[1-6]$'
-          and (options -> 'columns' ->> 'lg') ~ '^[1-6]$'
+          -- All three keys required, as JSON integers 1..6. A missing key would
+          -- make the regex NULL, which a CHECK treats as a pass.
+          and (options -> 'columns') ?& array['sm', 'md', 'lg']
+          and jsonb_typeof(options -> 'columns' -> 'sm') = 'number' and (options -> 'columns' ->> 'sm') ~ '^[1-6]$'
+          and jsonb_typeof(options -> 'columns' -> 'md') = 'number' and (options -> 'columns' ->> 'md') ~ '^[1-6]$'
+          and jsonb_typeof(options -> 'columns' -> 'lg') = 'number' and (options -> 'columns' ->> 'lg') ~ '^[1-6]$'
         ))
       else options = '{}'::jsonb
     end

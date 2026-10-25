@@ -161,7 +161,7 @@ Every editable table (`editors`, `site`, `socials`, `categories`, `works`, `medi
 
 | Type | Values |
 |---|---|
-| `editor_role` | `owner`, `editor` (both can edit everything; the seed makes Cesart and Echo 1560 owners) |
+| `editor_role` | `owner`, `editor`. Both edit all content and publish. **Only active owners manage accounts** (invite, disable, enable, remove), and the last active owner can never be disabled or removed. Invited accounts are always `editor`, and there is no API to promote anyone to owner. The seed makes Cesart and Echo 1560 owners. |
 | `work_status` | `draft`, `published`, `archived` |
 | `media_type` | `image`, `animated`, `video`, `embed` (same as `Media['type']`) |
 | `embed_provider` | `youtube`, `vimeo` |
@@ -275,12 +275,13 @@ Errors use SQLSTATE codes. PostgREST maps `PTxxx` to HTTP `xxx`, and `42501` to 
 |---|---|---|---|
 | `get_published_content()` | anon, authenticated | live `Content` JSON, or `null` if nothing has been published | — |
 | `is_editor()` | authenticated | `boolean` | — |
+| `is_owner()` | authenticated | `boolean`: an active owner (shows or hides the account controls) | — |
 | `build_content(p_published_only bool = true)` | editors | draft `Content` (preview with `false`) | `PT422` no site row |
 | `create_publish_run()` | editors | the new `publish_runs` row (`pending`) | `42501` not an editor, `PT409` a run is in flight (< 15 min), `PT422` missing hero or categories |
-| `update_publish_run(p_id, p_status, p_github_run_url?, p_error?)` | service role | updated row | `PT404` |
-| `set_editor_disabled(p_user_id, p_disabled)` | editors | updated `editors` row | `42501`, `PT409` for yourself, `PT404` |
-| `remove_editor(p_user_id)` | editors | deletes the `editors` row | `42501`, `PT409` for yourself, `PT404` |
-| `register_invited_editor(p_user_id, p_email, p_display_name, p_invited_by)` | service role | new `editors` row | `42501` inviter is not active, `23505` already an editor |
+| `update_publish_run(p_id, p_status, p_github_run_url?, p_error?)` | service role | updated row. Finished runs (`succeeded`/`failed`) are final | `PT404`, `PT409` already finished |
+| `set_editor_disabled(p_user_id, p_disabled)` | owners | updated `editors` row | `42501` not an active owner, `PT409` last active owner or yourself, `PT404` |
+| `remove_editor(p_user_id)` | owners | deletes the `editors` row | `42501` not an active owner, `PT409` last active owner or yourself, `PT404` |
+| `register_invited_editor(p_user_id, p_email, p_display_name, p_invited_by)` | service role | new `editors` row with role `editor` | `42501` inviter is not an active owner, `23505` already an editor |
 | `record_event(p_name, p_path, p_work_slug?, p_referrer_host?, p_device?, p_visitor_hash?, p_props?)` | service role | `true` stored / `false` rate-limited | `23514` invalid field |
 | `purge_old_events(p_keep interval = '400 days')` | service role | rows deleted | — |
 | `stats_overview(from, to)` | editors | `page_views, visitors, work_opens, video_plays, contact_clicks` | `42501`, `PT422` bad range |
@@ -334,19 +335,19 @@ The deploy workflow listens for `repository_dispatch: [publish]`. It reports pro
 ### `publish-status`
 
 - `GET /functions/v1/publish-status?limit=10` (editor JWT) → `{"ok": true, "runs": [{id, status, requested_at, requested_by_name, dispatched_at, finished_at, github_run_url, error}]}`, newest first.
-- `POST /functions/v1/publish-status` (header `x-publish-token: $PUBLISH_STATUS_TOKEN`, sent by the workflow) with `{"run_id", "status", "github_run_url"?, "error"?}` → `update_publish_run`.
+- `POST /functions/v1/publish-status` (header `x-publish-token: $PUBLISH_STATUS_TOKEN`, sent by the workflow) with `{"run_id", "status", "github_run_url"?, "error"?}` → `update_publish_run`. Compare the token in **constant time** (for example `timingSafeEqual` on SHA-256 digests) and answer `unauthorized` when it is missing or wrong. `PT409` (run already finished) becomes `conflict`.
 
-### `invite-editor` (editor JWT)
+### `invite-editor` (owner JWT)
 
 `POST /functions/v1/invite-editor` with `{"email": "...", "display_name": "..."}` → `200 {"ok": true, "editor": {user_id, email, display_name}}`.
 
-It calls `auth.admin.inviteUserByEmail(email, {redirectTo: <site>/admin/})` and then `register_invited_editor(user.id, email, display_name, <caller id>)`. The function returns `conflict` if the email is already an editor. The limit is 10 invites per editor per day (`rate_limited`).
+It calls `auth.admin.inviteUserByEmail(email, {redirectTo: <site>/admin/})` and then `register_invited_editor(user.id, email, display_name, <caller id>)`. Before inviting, it checks `is_owner()` with the caller's JWT and answers `forbidden` otherwise. The database enforces the same rule again in `register_invited_editor`. The function returns `conflict` if the email is already an editor. The limit is 10 invites per owner per day (`rate_limited`).
 
-### `remove-editor` (editor JWT)
+### `remove-editor` (owner JWT)
 
-`POST /functions/v1/remove-editor` with `{"user_id": "..."}` calls `remove_editor()` with the caller's JWT, then `auth.admin.deleteUser(user_id)`. You cannot remove yourself (`conflict`).
+`POST /functions/v1/remove-editor` with `{"user_id": "..."}` calls `remove_editor()` **with the caller's JWT**. It calls `auth.admin.deleteUser(user_id)` **only if that RPC succeeded**. On any RPC error (`42501` → `forbidden`, `PT409` → `conflict`, `PT404` → `not_found`) it stops and deletes nothing. Otherwise the service role could delete any auth user id it is sent.
 
-Disabling and re-enabling an editor needs no secret. The dashboard calls the `set_editor_disabled` RPC directly.
+Disabling and re-enabling an editor needs no secret. The dashboard calls the `set_editor_disabled` RPC directly; it is owner-only.
 
 ## 7. Analytics events
 
@@ -369,7 +370,7 @@ What the `track` function stores in `events`:
 | `visitor_hash` | see below | 64 hex chars |
 | `props` | only the keys listed above; anything else is dropped | ≤ 1 KiB |
 
-**IP handling.** The IP (first `x-forwarded-for` entry) and the User-Agent are used only in memory:
+**IP handling.** The function uses the IP **added by the platform**, never one the client can set. That is `cf-connecting-ip` or `x-real-ip` on Supabase Edge, falling back to the **last** `x-forwarded-for` entry. The first XFF entry is client-controlled: a client could rotate it to get around the per-visitor limit and inflate `visitors`. The IP and the User-Agent are used only in memory:
 
 ```
 daily_salt   = HMAC-SHA256(EVENTS_HASH_SECRET, "YYYY-MM-DD")   // UTC date
@@ -420,7 +421,7 @@ It never falls back to local content or publishes an empty site. The error names
 ```sh
 npm run db:start          # supabase start (Docker); applies migrations + seed
 npm run db:reset          # re-apply migrations + seed from scratch
-npm run db:test           # pgTAP: structure, seed = content, RLS, storage, events/stats
+npm run db:test           # pgTAP: structure, seed = content, RLS, storage, events/stats, accounts/publish
 npm run db:test:api       # Auth/PostgREST/Storage checks against the running local stack
 npm run db:seed:generate  # rebuild supabase/seed.sql after editing content/
 npm run db:seed:check     # CI: fails if the committed seed is stale
@@ -440,7 +441,7 @@ The seed also stores one `succeeded` publish run, so `get_published_content()` w
 
 ### Auth config
 
-`supabase/config.toml` sets `[auth] enable_signup = false`. Keep `[auth.email] enable_signup = true`: in the CLI that flag enables the email provider itself, and turning it off also blocks password login. The hosted project needs the same settings: Authentication → Sign In / Providers → "Allow new users to sign up" **off**, Email provider **on**.
+`supabase/config.toml` sets `[auth] enable_signup = false`. Keep `[auth.email] enable_signup = true`: in the CLI that flag enables the email provider itself, and turning it off also blocks password login. `[auth.email] secure_password_change = true`, so a stolen session cannot change the password without a recent sign-in. The hosted project needs the same settings: Authentication → Sign In / Providers → "Allow new users to sign up" **off**, Email provider **on**, "Secure password change" **on**.
 
 ### Rules for later migrations
 

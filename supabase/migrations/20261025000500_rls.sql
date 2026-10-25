@@ -10,8 +10,57 @@
 -- Editor management RPCs
 -- ---------------------------------------------------------------------------
 
+-- True when the caller is an active owner. Only owners manage accounts
+-- (invite, disable, enable, remove); owners and editors both edit all content.
+create function public.is_owner()
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1 from public.editors e
+    where e.user_id = (select auth.uid()) and e.disabled_at is null and e.role = 'owner'
+  );
+$$;
+
+-- Shared guard for disable/enable/remove. Errors: 42501 caller is not an
+-- active owner, PT409 targeting yourself or the last active owner, PT404
+-- unknown editor. An advisory lock serialises account changes so the
+-- last-owner count cannot race.
+create function public.assert_can_manage_editor(p_user_id uuid, p_verb text)
+returns public.editors
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  ed public.editors;
+begin
+  if not public.is_owner() then
+    raise exception 'only owners can manage accounts' using errcode = '42501';
+  end if;
+  perform pg_advisory_xact_lock(hashtext('public.editors.manage'));
+  select * into ed from public.editors where user_id = p_user_id for update;
+  if not found then
+    raise exception 'editor % not found', p_user_id using errcode = 'PT404';
+  end if;
+  if p_verb <> 'enable' and ed.role = 'owner' and ed.disabled_at is null and (
+    select count(*) from public.editors where role = 'owner' and disabled_at is null
+  ) <= 1 then
+    raise exception 'cannot % the last active owner', p_verb using errcode = 'PT409';
+  end if;
+  if p_user_id = (select auth.uid()) then
+    raise exception 'you cannot % your own account', p_verb using errcode = 'PT409';
+  end if;
+  return ed;
+end;
+$$;
+
 -- Disable or re-enable an editor. Disabled editors keep their auth account but
 -- lose every read/write right at once (is_editor() checks disabled_at).
+-- The editors audit trigger logs the change (disabled_at old/new) with the actor.
 create function public.set_editor_disabled(p_user_id uuid, p_disabled boolean)
 returns public.editors
 language plpgsql
@@ -21,53 +70,34 @@ as $$
 declare
   ed public.editors;
 begin
-  if not public.is_editor() then
-    raise exception 'only editors can manage accounts' using errcode = '42501';
-  end if;
-  if p_user_id = (select auth.uid()) then
-    raise exception 'you cannot disable your own account' using errcode = 'PT409';
-  end if;
+  perform public.assert_can_manage_editor(p_user_id, case when p_disabled then 'disable' else 'enable' end);
   update public.editors
      set disabled_at = case when p_disabled then coalesce(disabled_at, now()) end
    where user_id = p_user_id
   returning * into ed;
-  if not found then
-    raise exception 'editor % not found', p_user_id using errcode = 'PT404';
-  end if;
-  perform public.write_activity(case when p_disabled then 'disable' else 'enable' end, 'editors', p_user_id::text,
-                                jsonb_build_object('email', ed.email::text));
   return ed;
 end;
 $$;
 
--- Removes editor rights (deletes the editors row). The remove-editor Edge
--- Function then deletes the auth user with the service role.
+-- Removes editor rights (deletes the editors row; the audit trigger logs it).
+-- The remove-editor Edge Function deletes the auth user ONLY after this
+-- returns without error.
 create function public.remove_editor(p_user_id uuid)
 returns void
 language plpgsql
 security definer
 set search_path = ''
 as $$
-declare
-  ed public.editors;
 begin
-  if not public.is_editor() then
-    raise exception 'only editors can manage accounts' using errcode = '42501';
-  end if;
-  if p_user_id = (select auth.uid()) then
-    raise exception 'you cannot remove your own account' using errcode = 'PT409';
-  end if;
-  delete from public.editors where user_id = p_user_id returning * into ed;
-  if not found then
-    raise exception 'editor % not found', p_user_id using errcode = 'PT404';
-  end if;
-  perform public.write_activity('remove', 'editors', p_user_id::text, jsonb_build_object('email', ed.email::text));
+  perform public.assert_can_manage_editor(p_user_id, 'remove');
+  delete from public.editors where user_id = p_user_id;
 end;
 $$;
 
 -- Registers an invited auth user as an editor. Service role only: called by the
 -- invite-editor Edge Function after auth.admin.inviteUserByEmail(), with the
--- inviting editor's id (verified from their JWT) as p_invited_by.
+-- inviting owner's id (verified from their JWT) as p_invited_by. Invited
+-- accounts get role 'editor'; there is no API to promote anyone to owner.
 create function public.register_invited_editor(p_user_id uuid, p_email text, p_display_name text, p_invited_by uuid)
 returns public.editors
 language plpgsql
@@ -77,8 +107,8 @@ as $$
 declare
   ed public.editors;
 begin
-  if not exists (select 1 from public.editors where user_id = p_invited_by and disabled_at is null) then
-    raise exception 'inviter is not an active editor' using errcode = '42501';
+  if not exists (select 1 from public.editors where user_id = p_invited_by and disabled_at is null and role = 'owner') then
+    raise exception 'inviter is not an active owner' using errcode = '42501';
   end if;
   insert into public.editors (user_id, email, display_name, role, invited_by)
   values (p_user_id, p_email, p_display_name, 'editor', p_invited_by)
@@ -122,6 +152,7 @@ grant execute on function public.get_published_content() to anon, authenticated;
 grant execute on function public.is_published_media(text) to anon, authenticated;
 grant execute on function
   public.is_editor(),
+  public.is_owner(),
   public.placement_json(public.media_placements),
   public.build_content(boolean),
   public.create_publish_run(),

@@ -18,6 +18,8 @@ $$;
 drop function if exists public.register_invited_editor(uuid, text, text, uuid);
 drop function if exists public.remove_editor(uuid);
 drop function if exists public.set_editor_disabled(uuid, boolean);
+drop function if exists public.assert_can_manage_editor(uuid, text);
+drop function if exists public.is_owner();
 
 alter default privileges for role postgres in schema public grant all on tables to anon, authenticated;
 alter default privileges for role postgres in schema public grant all on sequences to anon, authenticated;
