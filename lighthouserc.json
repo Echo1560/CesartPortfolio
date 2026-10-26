@@ -4,13 +4,18 @@
       "startServerCommand": "npm run preview -- --port 4322",
       "startServerReadyPattern": "CesartPortfolio",
       "url": ["http://localhost:4322/CesartPortfolio/", "http://localhost:4322/CesartPortfolio/work/placeholder-illustration-01/"],
-      "numberOfRuns": 1,
-      "settings": { "chromeFlags": "--no-sandbox --headless=new" }
+      "numberOfRuns": 3,
+      "settings": {
+        "formFactor": "mobile",
+        "throttlingMethod": "simulate",
+        "throttling": { "rttMs": 150, "throughputKbps": 1638.4, "requestLatencyMs": 562.5, "downloadThroughputKbps": 1474.56, "uploadThroughputKbps": 675, "cpuSlowdownMultiplier": 4 },
+        "chromeFlags": "--no-sandbox --headless=new"
+      }
     },
     "assert": {
       "assertions": {
-        "categories:performance": ["error", { "minScore": 0.9 }],
-        "categories:accessibility": ["error", { "minScore": 0.9 }]
+        "categories:performance": ["error", { "minScore": 0.9, "aggregationMethod": "median" }],
+        "categories:accessibility": ["error", { "minScore": 0.9, "aggregationMethod": "median" }]
       }
     },
     "upload": { "target": "filesystem", "outputDir": ".lighthouseci" }
