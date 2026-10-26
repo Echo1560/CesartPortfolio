@@ -117,10 +117,10 @@ const loading = eager ? 'eager' : 'lazy';
   }
   .media__toggle[hidden] { display: none; }
   .media__embed-play {
-    position: absolute; inset: 0; width: 100%; border: 0; background: rgb(0 0 0 / 0.25); color: #fff; display: grid; place-items: center; font-size: var(--text-3xl);
+    position: absolute; inset: 0; width: 100%; border: 0; background: var(--color-scrim-medium); color: var(--color-on-media); display: grid; place-items: center; font-size: var(--text-3xl);
     transition: background-color var(--dur-fast) var(--ease-out);
   }
-  .media__embed-play:hover { background: rgb(0 0 0 / 0.1); }
+  .media__embed-play:hover { background: var(--color-scrim); }
   .media__fallback { position: absolute; right: var(--space-3); bottom: var(--space-3); z-index: 1; padding: var(--space-1) var(--space-3); font-size: var(--text-xs); border-radius: var(--radius-pill); background: var(--color-overlay); color: var(--color-on-overlay); }
   .media__fallback:hover { color: var(--color-on-overlay); }
   .media--embed iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
