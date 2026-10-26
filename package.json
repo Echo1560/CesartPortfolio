@@ -26,6 +26,7 @@
     "db:seed:check": "tsx scripts/generate-seed.ts && git diff --exit-code -- supabase/seed.sql supabase/tests/database/01_seed_matches_content.test.sql"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.118.0",
     "astro": "^7.4.2",
     "marked": "^18.1.1",
     "sanitize-html": "^2.18.1",
