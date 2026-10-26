@@ -5,7 +5,9 @@
  *   CONTENT_SOURCE=local     validate content/*.json + content/media/ (v1)
  *   CONTENT_SOURCE=supabase  fetch the live snapshot with the anon key, download
  *                            every referenced Storage object into content/media/,
- *                            then validate (docs/V2-CONTRACTS.md §4 and §8)
+ *                            validate, and write the snapshot to
+ *                            generated/content.json for `astro build`
+ *                            (docs/V2-CONTRACTS.md §4 and §8)
  *
  * Media must be on disk before Astro starts: `media.ts` finds files with
  * `import.meta.glob`, which is resolved when the bundle is built. Public pages
@@ -27,7 +29,9 @@ import {
   fetchPublishedContent,
   mediaDir as mediaDirOf,
   mediaKeys,
+  removeSnapshot,
   supabaseConfig,
+  writeSnapshot,
   type ContentInput,
 } from '../src/lib/content-source.ts';
 import { hasVariants, VARIANTS_DIR } from '../src/lib/media-variants.ts';
@@ -60,6 +64,8 @@ function readLocal(): ContentInput {
 }
 
 async function loadContent(): Promise<ValidContent> {
+  // Never leave a previous snapshot behind: a failed or local run must not let astro build render stale content.
+  await removeSnapshot(root);
   const source = contentSource();
   if (source === 'local') {
     const { site, works } = readLocal();
@@ -74,7 +80,9 @@ async function loadContent(): Promise<ValidContent> {
   const keys = mediaKeys(shaped);
   const { written, unchanged } = await downloadMedia(config, keys, mediaDir);
   console.log(`→ media: ${keys.length} files from Storage (${written.length} written, ${unchanged.length} unchanged)`);
-  return validateContent(input.site, input.works, mediaExists);
+  const valid = validateContent(input.site, input.works, mediaExists);
+  await writeSnapshot(root, config, input);
+  return valid;
 }
 
 function animatedKeys({ site, works }: ValidContent): string[] {

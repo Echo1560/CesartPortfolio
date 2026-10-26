@@ -235,6 +235,50 @@ export async function downloadMedia(
   return result;
 }
 
+/** Validated snapshot written by `content:prepare` and read by `astro build`, relative to the project root. */
+export const SNAPSHOT_FILE = 'generated/content.json';
+
+interface SnapshotFile extends ContentInput {
+  source: 'supabase';
+  url: string;
+  fetchedAt: string;
+}
+
+/**
+ * Stores the snapshot that `content:prepare` fetched and validated, so
+ * `astro build` renders exactly that one (and needs no second request).
+ */
+export async function writeSnapshot(root: string, config: SupabaseConfig, input: ContentInput): Promise<void> {
+  const file = join(root, SNAPSHOT_FILE);
+  const body: SnapshotFile = { source: 'supabase', url: config.url, fetchedAt: new Date().toISOString(), site: input.site, works: input.works };
+  await mkdir(dirname(file), { recursive: true });
+  await writeFile(file, JSON.stringify(body));
+}
+
+export async function removeSnapshot(root: string): Promise<void> {
+  await rm(join(root, SNAPSHOT_FILE), { force: true });
+}
+
+/** Reads the prepared snapshot. Throws when it is missing or was fetched from another project. */
+export async function readSnapshot(root: string, config: SupabaseConfig): Promise<ContentInput> {
+  const file = join(root, SNAPSHOT_FILE);
+  let parsed: Partial<SnapshotFile>;
+  try {
+    parsed = JSON.parse(await readFile(file, 'utf8')) as Partial<SnapshotFile>;
+  } catch (error) {
+    throw new ContentSourceError(
+      `No prepared Supabase snapshot at ${SNAPSHOT_FILE}. Run \`npm run build\` (or \`npm run content:prepare\` before \`astro build\`).`,
+      { cause: error },
+    );
+  }
+  if (parsed.source !== 'supabase' || parsed.url !== config.url) {
+    throw new ContentSourceError(
+      `${SNAPSHOT_FILE} was prepared for ${parsed.url ?? 'another source'}, not ${config.url}. Run \`npm run content:prepare\` again.`,
+    );
+  }
+  return mapSnapshot({ site: parsed.site, works: parsed.works });
+}
+
 /** `content/media/` under the project root. */
 export function mediaDir(root: string = process.cwd()): string {
   return join(root, 'content', 'media');

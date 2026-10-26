@@ -88,6 +88,22 @@ describe.skipIf(!ffmpeg)('generateVariants (ffmpeg)', () => {
     expect([poster.format, poster.width, poster.height]).toEqual(['jpeg', 41, 31]);
   });
 
+  it('streams long animated WebP in decode batches with correct timing', { timeout: 60_000 }, async () => {
+    // 40 frames at 50 ms crosses the 16-frame decode batch twice; each frame moves the dot.
+    const frames = await Promise.all(
+      Array.from({ length: 40 }, (_, i) =>
+        sharp(Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="80" height="20"><circle cx="${2 + i * 2}" cy="10" r="2" fill="#c33"/></svg>`))
+          .png()
+          .toBuffer(),
+      ),
+    );
+    await sharp(frames, { join: { animated: true } }).webp({ loop: 0, delay: Array(40).fill(50), lossless: true }).toFile(join(media(), 'uploads/long.webp'));
+    const result = await generateVariants(media(), 'uploads/long.webp', out(), { ffmpeg: ffmpeg!, cacheDir: cacheDir() });
+    const info = await probe(result.files.mp4);
+    expect(info).toMatch(/Duration: 00:00:0(1\.9\d|2\.0\d)/);
+    expect(info).toMatch(/ 20 fps/);
+  });
+
   it('reuses cached outputs keyed by content hash', { timeout: 60_000 }, async () => {
     const key = 'uploads/loop.gif';
     rmSync(out(), { recursive: true, force: true });

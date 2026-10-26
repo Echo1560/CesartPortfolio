@@ -49,7 +49,7 @@ This is the only module that reads content. It runs at build time only, because 
 | `CONTENT_SOURCE` | Source |
 |---|---|
 | `local` (default) | `content/*.json` + `content/media/`. Dev, tests, e2e fixtures. |
-| `supabase` | The live publish snapshot from `get_published_content()`, fetched with `PUBLIC_SUPABASE_ANON_KEY`. Before Astro starts, `scripts/prepare-content.ts` downloads every referenced Storage object into `content/media/`, so pages serve media from GitHub Pages and never from Supabase. |
+| `supabase` | The live publish snapshot from `get_published_content()`, fetched with `PUBLIC_SUPABASE_ANON_KEY`. Before Astro starts, `scripts/prepare-content.ts` downloads every referenced Storage object into `content/media/` and writes the validated snapshot to `generated/content.json`, which `load()` reads. Pages serve media from GitHub Pages and never from Supabase, and `astro build` itself makes no Supabase request. |
 
 In `supabase` mode the build fails with `ContentSourceError` when an env var is missing, Supabase is unreachable or times out (30 s), the response is not 200, nothing is published or a download fails, and with `ContentError` when the snapshot does not validate. It never falls back to local content.
 
@@ -61,7 +61,7 @@ In `supabase` mode the build fails with `ContentSourceError` when an env var is 
 | `getWorks(filter?: {categoryId?, featured?})` | `Promise<Work[]>`, sorted by `order` ascending (missing last), then `year` descending, then title |
 | `getWork(slug)` | `Promise<Work \| undefined>` |
 | `getFeaturedWorks()` | Works for the featured section, in `options.workIds` order and capped by `limit`. Falls back to `featured: true` works. |
-| `renderMarkdown(md)` | HTML string (for `about.body`) |
+| `renderMarkdown(md)` | Sanitized HTML string (for `about.body`). Editors write this text in supabase mode, so the output is allowlisted (`p, br, em, strong, a, ul, ol, li, h2–h4, blockquote, code, pre`; links only `http`, `https`, `mailto`). |
 
 Content is loaded and validated once per build and then cached.
 

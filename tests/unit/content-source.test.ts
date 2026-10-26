@@ -9,8 +9,11 @@ import {
   fetchPublishedContent,
   mapSnapshot,
   mediaKeys,
+  readSnapshot,
+  removeSnapshot,
   safeJoin,
   supabaseConfig,
+  writeSnapshot,
 } from '../../src/lib/content-source';
 import { validateContent } from '../../src/lib/validate';
 import siteFixture from '../fixtures/site.json';
@@ -169,17 +172,54 @@ describe('downloadMedia', () => {
   });
 });
 
+describe('prepared snapshot file', () => {
+  let dir: string;
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'cesart-snap-'));
+  });
+  afterEach(() => rmSync(dir, { recursive: true, force: true }));
+
+  it('round-trips the snapshot content:prepare validated', async () => {
+    await writeSnapshot(dir, config, snapshot);
+    await expect(readSnapshot(dir, config)).resolves.toEqual(snapshot);
+  });
+
+  it('fails when the snapshot was not prepared', async () => {
+    await expect(readSnapshot(dir, config)).rejects.toThrow(/No prepared Supabase snapshot.*content:prepare/);
+    await writeSnapshot(dir, config, snapshot);
+    await removeSnapshot(dir);
+    await expect(readSnapshot(dir, config)).rejects.toThrow(ContentSourceError);
+  });
+
+  it('fails when the snapshot came from another project', async () => {
+    await writeSnapshot(dir, { ...config, url: 'https://other.supabase.co' }, snapshot);
+    await expect(readSnapshot(dir, config)).rejects.toThrow(/prepared for https:\/\/other\.supabase\.co/);
+  });
+});
+
 describe('content.ts with CONTENT_SOURCE=supabase', () => {
   const env = { CONTENT_SOURCE: 'supabase', PUBLIC_SUPABASE_URL: config.url, PUBLIC_SUPABASE_ANON_KEY: config.anonKey };
+  let dir: string;
 
   beforeEach(() => {
     vi.resetModules();
     for (const [k, v] of Object.entries(env)) vi.stubEnv(k, v);
+    dir = mkdtempSync(join(tmpdir(), 'cesart-load-'));
+    vi.spyOn(process, 'cwd').mockReturnValue(dir);
+    // astro build must never call Supabase itself.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new Error('unexpected network call from astro build');
+      }),
+    );
   });
   afterEach(() => {
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
     vi.doUnmock('node:fs');
+    rmSync(dir, { recursive: true, force: true });
   });
 
   async function importContent() {
@@ -192,35 +232,24 @@ describe('content.ts with CONTENT_SOURCE=supabase', () => {
     return import('../../src/lib/content');
   }
 
-  it('builds from the published snapshot', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => json(snapshot)));
+  it('builds from the prepared snapshot without a network call', async () => {
+    await writeSnapshot(dir, config, snapshot);
     const content = await importContent();
     expect((await content.getSite()).meta.title).toBe(siteFixture.meta.title);
     expect((await content.getWorks()).length).toBe(worksFixture.length);
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it('fails the build when the snapshot does not validate', async () => {
     const broken = { site: siteFixture, works: [{ ...worksFixture[0], categoryId: 'no-such-category' }] };
-    vi.stubGlobal('fetch', vi.fn(async () => json(broken)));
+    await writeSnapshot(dir, config, broken);
     const content = await importContent();
     await expect(content.getSite()).rejects.toThrow(content.ContentError); // fresh module graph: compare with its own class
     await expect(content.getWorks()).rejects.toThrow(/unknown categoryId "no-such-category"/);
   });
 
-  it('fails the build when Supabase is down, never falling back to local content', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => {
-        throw new TypeError('fetch failed');
-      }),
-    );
+  it('fails the build when content:prepare did not run (or failed), never falling back to local content', async () => {
     const content = await importContent();
-    await expect(content.getSite()).rejects.toThrow(/Supabase unreachable at http:\/\/127\.0\.0\.1:54321/);
-  });
-
-  it('fails the build when nothing is published', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => json(null)));
-    const content = await importContent();
-    await expect(content.getWorks()).rejects.toThrow(/no published content/);
+    await expect(content.getSite()).rejects.toThrow(/No prepared Supabase snapshot/);
   });
 });

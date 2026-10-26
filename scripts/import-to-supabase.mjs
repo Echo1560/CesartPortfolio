@@ -18,8 +18,8 @@
  *      build_content(true), unless the live snapshot already equals it
  *
  * The service-role key bypasses RLS. It is read from the environment only
- * (SUPABASE_SERVICE_ROLE_KEY, or a git-ignored .env), never from a file in the
- * repo, and never printed. For local Supabase: `npx supabase status -o env`.
+ * (SUPABASE_SERVICE_ROLE_KEY in the shell, for this command only). It does not
+ * read .env, which every build loads, and it is never printed. For local Supabase: `npx supabase status -o env`.
  *
  * Draft tables only change in step 3, and the public site reads only the
  * published snapshot, so the short gap between the placement delete and insert
@@ -55,7 +55,6 @@ function fail(message) {
   process.exit(1);
 }
 
-if (existsSync(join(root, '.env'))) process.loadEnvFile(join(root, '.env'));
 const url = (process.env.SUPABASE_URL || process.env.PUBLIC_SUPABASE_URL || '').trim().replace(/\/+$/, '');
 const serviceKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
 if (!url) fail('Set SUPABASE_URL (or PUBLIC_SUPABASE_URL).');

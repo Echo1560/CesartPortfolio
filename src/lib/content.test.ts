@@ -60,6 +60,29 @@ describe('data-access layer', () => {
 
   it('renders markdown', () => {
     expect(renderMarkdown('**bold**')).toContain('<strong>bold</strong>');
+    const md = ['## Hi', '- a\n- b', '> quote', '`code`'].join('\n\n');
+    expect(renderMarkdown(md)).toBe(
+      '<h2>Hi</h2>\n<ul>\n<li>a</li>\n<li>b</li>\n</ul>\n<blockquote>\n<p>quote</p>\n</blockquote>\n<p><code>code</code></p>\n',
+    );
+    expect(renderMarkdown('[site](https://example.com "T") [mail](mailto:a@example.com)')).toBe(
+      '<p><a href="https://example.com" title="T">site</a> <a href="mailto:a@example.com">mail</a></p>\n',
+    );
+  });
+
+  it('sanitizes markdown from editors (stored XSS)', () => {
+    const html = renderMarkdown(
+      [
+        'Hi <script>alert(1)</script>',
+        '<img src=x onerror="alert(2)">',
+        '[click](javascript:alert(3))',
+        '<a href="JaVaScRiPt:alert(4)">x</a> <a href="//evil.example/">y</a>',
+        '<p onclick="alert(5)" style="color:red">p</p><iframe src="https://evil.example"></iframe>',
+        '<svg onload="alert(6)"></svg>',
+      ].join('\n\n'),
+    );
+    expect(html).not.toMatch(/<script|onerror|onclick|onload|javascript:|<img|<iframe|<svg|style=|evil\.example/i);
+    expect(html).toContain('<p>p</p>');
+    expect(html).toContain('Hi');
   });
 });
 

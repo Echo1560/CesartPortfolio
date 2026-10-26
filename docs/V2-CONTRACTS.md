@@ -237,7 +237,7 @@ With `CONTENT_SOURCE=supabase`, before `astro build`:
 2. For every key in the snapshot (`src`, `poster`, `ogImage`, skipping embed URLs), download `GET {SUPABASE_URL}/storage/v1/object/authenticated/media/<key>` with the anon key into `content/media/<key>`. `content/media/uploads/` is git-ignored. Imported keys overwrite their identical committed copies.
 3. `validateContent` checks that every file now exists. `media.ts` keeps its `import.meta.glob('content/media/**')`, so no URL logic moves out of `media.ts`.
 
-A missing download fails the build. Steps 1–3 run in `scripts/prepare-content.ts` (`npm run content:prepare`, the first half of `npm run build`), because `import.meta.glob` is resolved when the bundle is built and so files must be on disk before `astro build` starts. A downloaded file whose bytes equal the local copy is not rewritten, so committed copies of imported keys never show as changed.
+A missing download fails the build. Steps 1–3 run in `scripts/prepare-content.ts` (`npm run content:prepare`, the first half of `npm run build`), because `import.meta.glob` is resolved when the bundle is built and so files must be on disk before `astro build` starts. Prepare also writes the validated snapshot to `generated/content.json`, which `load()` reads (§8). A downloaded file whose bytes equal the local copy is not rewritten, so committed copies of imported keys never show as changed.
 
 ### Media variants (resolved by `media.ts` at build time)
 
@@ -396,7 +396,7 @@ function load(): Promise<ValidContent>;
 | `CONTENT_SOURCE` | Behaviour |
 |---|---|
 | `local` (default) | v1: `content/*.json` + `content/media/`. Tests and offline dev use this. |
-| `supabase` | `POST {PUBLIC_SUPABASE_URL}/rest/v1/rpc/get_published_content` with `PUBLIC_SUPABASE_ANON_KEY` → `validateContent(snapshot.site, snapshot.works, mediaExists)`, after the media download in §4. |
+| `supabase` | `content:prepare` calls `POST {PUBLIC_SUPABASE_URL}/rest/v1/rpc/get_published_content` with `PUBLIC_SUPABASE_ANON_KEY` **once**, downloads the media (§4), validates, and writes the snapshot to `generated/content.json` (git-ignored, removed at the start of every prepare). `load()` reads that file → `validateContent(snapshot.site, snapshot.works, mediaExists)`, and fails if it is missing or was prepared for another `PUBLIC_SUPABASE_URL`. `astro build` makes no Supabase request, so it always renders the snapshot whose media was downloaded. |
 
 Environment variables (see `.env.example`):
 
@@ -409,7 +409,7 @@ Environment variables (see `.env.example`):
 | `PUBLISH_STATUS_TOKEN` | Supabase secret + GitHub Actions secret | **yes** |
 | `EVENTS_HASH_SECRET` | Supabase secret | **yes** |
 | `MEDIA_VARIANTS` | build (`auto` / `required` / `off`, see §4) | no |
-| `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | `npm run db:import` only, from the shell env or a git-ignored `.env` | **yes** (the key) |
+| `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | `npm run db:import` only, from the shell env (never `.env`, which every build loads) | **yes** (the key) |
 
 **Fail loud.** With `CONTENT_SOURCE=supabase`, the build throws and exits non-zero when any of these happens:
 
@@ -425,7 +425,7 @@ It never falls back to local content or publishes an empty site. The error names
 ### Import and parity
 
 - `npm run db:import` (`scripts/import-to-supabase.mjs`) uploads every file referenced by `content/` to the bucket under its content path (upsert) and upserts the draft tables from `content/*.json` (placements and the featured list of the imported content are replaced). It is idempotent and keeps rows that are not in `content/`. `--publish` stores a `succeeded` publish run from `build_content(true)` unless the live snapshot already equals it. Any non-local URL needs `--hosted`.
-- `npm run test:parity` (local stack only, after `db:import`) builds with both sources, compares the output trees and every HTML page with `/_astro/` hashes ignored, and checks that both `content:prepare` and `astro build` fail with `Supabase unreachable` against a closed port. CI runs it in the `database` job.
+- `npm run test:parity` (local stack only, after `db:import`) builds with both sources, compares the output trees and every HTML page with `/_astro/` hashes ignored, and checks that `content:prepare` fails with `Supabase unreachable` against a closed port and that `astro build` then refuses to run without a prepared snapshot. CI runs it in the `database` job.
 
 ## 9. Local development and tests
 

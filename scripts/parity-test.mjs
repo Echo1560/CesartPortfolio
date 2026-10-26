@@ -12,7 +12,7 @@
  *   3. compare both trees: same files, same HTML. Hashes in /_astro/ asset
  *      names are ignored, so only content and structure count.
  *   4. a build pointed at a closed port must exit non-zero and name the cause,
- *      both in the pre-build step and in `astro build` itself.
+ *      and `astro build` must then refuse to run without a prepared snapshot.
  *   5. the Supabase build must not have changed any tracked file in content/.
  */
 import { execSync, spawnSync } from 'node:child_process';
@@ -124,10 +124,11 @@ check(
   prep.code !== 0 && prep.output.includes('Supabase unreachable at http://127.0.0.1:9'),
   prep.output.slice(-800),
 );
+// The failed prepare removed the snapshot, so astro build alone must refuse (it never calls Supabase itself).
 const astro = run(process.execPath, [join(root, 'node_modules', 'astro', 'bin', 'astro.mjs'), 'build', '--outDir', join(out, 'down')], down);
 check(
-  'astro build fails when Supabase is down',
-  astro.code !== 0 && astro.output.includes('Supabase unreachable at http://127.0.0.1:9'),
+  'astro build refuses to run without a prepared snapshot',
+  astro.code !== 0 && astro.output.includes('No prepared Supabase snapshot'),
   astro.output.slice(-800),
 );
 

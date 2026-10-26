@@ -68,16 +68,44 @@ async function exists(path: string): Promise<boolean> {
   );
 }
 
-function runFfmpeg(ffmpeg: string, args: string[], stdin?: Buffer): Promise<void> {
+/** Frames to stream into ffmpeg's stdin, one buffer at a time. */
+type FrameStream = AsyncIterable<Buffer>;
+
+async function writeFrames(stdin: NodeJS.WritableStream, frames: FrameStream): Promise<void> {
+  for await (const frame of frames) {
+    // Respect backpressure so only a few frames are ever buffered.
+    if (!stdin.write(frame)) await new Promise<void>((resolveDrain, rejectDrain) => {
+      const done = (error?: Error) => {
+        stdin.off('drain', done);
+        stdin.off('close', done);
+        stdin.off('error', done);
+        error ? rejectDrain(error) : resolveDrain();
+      };
+      stdin.once('drain', done);
+      stdin.once('close', done);
+      stdin.once('error', done);
+    });
+  }
+  stdin.end();
+}
+
+function runFfmpeg(ffmpeg: string, args: string[], frames?: FrameStream): Promise<void> {
   return new Promise((resolvePromise, reject) => {
-    const child = spawn(ffmpeg, ['-y', '-hide_banner', '-loglevel', 'error', ...args], { stdio: [stdin ? 'pipe' : 'ignore', 'ignore', 'pipe'] });
+    const child = spawn(ffmpeg, ['-y', '-hide_banner', '-loglevel', 'error', ...args], { stdio: [frames ? 'pipe' : 'ignore', 'ignore', 'pipe'] });
     let stderr = '';
+    let writeError: unknown;
     child.stderr?.on('data', (chunk: Buffer) => (stderr += chunk.toString()));
     child.on('error', reject);
-    child.on('close', (code) => (code === 0 ? resolvePromise() : reject(new VariantError(`ffmpeg exited with ${code}: ${stderr.trim().slice(-800)}`))));
-    if (stdin && child.stdin) {
+    child.on('close', (code) => {
+      if (code === 0 && !writeError) resolvePromise();
+      else reject(new VariantError(`ffmpeg exited with ${code}: ${stderr.trim().slice(-800) || String(writeError ?? '')}`));
+    });
+    if (frames && child.stdin) {
       child.stdin.on('error', () => {}); // ffmpeg may close early on bad input; the exit code reports it
-      child.stdin.end(stdin);
+      writeFrames(child.stdin, frames).catch((error: unknown) => {
+        writeError = error;
+        child.kill();
+      });
     }
   });
 }
@@ -87,35 +115,52 @@ function frameDelay(ms: number | undefined): number {
   return ms === undefined || ms <= 10 ? 100 : ms;
 }
 
-/** Animated WebP → raw RGBA frames at a constant rate, each frame repeated to match its delay. */
-async function webpAsRawVideo(bytes: Buffer): Promise<{ input: string[]; stdin: Buffer }> {
-  const { data, info } = await sharp(bytes, { animated: true, limitInputPixels: false }).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+/** Animated WebP pages decoded per batch, so memory stays bounded for long animations. */
+const DECODE_BATCH = 16;
+
+/**
+ * Animated WebP → raw RGBA frames at a constant rate, each frame repeated to
+ * match its delay. Frames are decoded in batches and streamed to ffmpeg.
+ *
+ * The rate is 1000 / gcd(delays), capped at MAX_FPS. Under the cap every delay
+ * is an exact multiple of the frame time. At the cap, a delay that is not a
+ * multiple of 20 ms is rounded to the nearest frame (at most ±10 ms per frame),
+ * so the total loop length can drift slightly from the source.
+ */
+async function webpAsRawVideo(bytes: Buffer): Promise<{ input: string[]; frames: FrameStream }> {
   const meta = await sharp(bytes, { animated: true }).metadata();
   const pages = meta.pages ?? 1;
-  const width = info.width;
-  const height = meta.pageHeight ?? info.height / pages;
+  const width = meta.width!;
+  const height = meta.pageHeight ?? meta.height!;
   const frameBytes = width * height * 4;
   const delays = Array.from({ length: pages }, (_, i) => frameDelay(meta.delay?.[i]));
   const gcd = (a: number, b: number): number => (b ? gcd(b, a % b) : a);
   const fps = Math.min(MAX_FPS, 1000 / delays.reduce(gcd));
-  const frames: Buffer[] = [];
-  delays.forEach((delay, i) => {
-    const frame = data.subarray(i * frameBytes, (i + 1) * frameBytes);
-    for (let n = Math.max(1, Math.round((delay * fps) / 1000)); n > 0; n--) frames.push(frame);
-  });
+
+  async function* frames(): FrameStream {
+    for (let first = 0; first < pages; first += DECODE_BATCH) {
+      const count = Math.min(DECODE_BATCH, pages - first);
+      const data = await sharp(bytes, { page: first, pages: count, limitInputPixels: false }).ensureAlpha().raw().toBuffer();
+      for (let i = 0; i < count; i++) {
+        const frame = data.subarray(i * frameBytes, (i + 1) * frameBytes);
+        for (let n = Math.max(1, Math.round((delays[first + i] * fps) / 1000)); n > 0; n--) yield frame;
+      }
+    }
+  }
+
   return {
     input: ['-f', 'rawvideo', '-pix_fmt', 'rgba', '-s', `${width}x${height}`, '-r', String(fps), '-i', 'pipe:0'],
-    stdin: Buffer.concat(frames),
+    frames: frames(),
   };
 }
 
 async function encode(ffmpeg: string, source: string, bytes: Buffer, outDir: string): Promise<void> {
   const isWebp = source.toLowerCase().endsWith('.webp');
-  const { input, stdin } = isWebp ? await webpAsRawVideo(bytes) : { input: ['-i', source], stdin: undefined };
+  const { input, frames } = isWebp ? await webpAsRawVideo(bytes) : { input: ['-i', source], frames: undefined };
   await runFfmpeg(
     ffmpeg,
     [...input, '-filter_complex', FILTER, '-map', '[mp4]', ...MP4_ARGS, join(outDir, 'video.mp4'), '-map', '[webm]', ...WEBM_ARGS, join(outDir, 'video.webm')],
-    stdin,
+    frames,
   );
   await sharp(bytes, { page: 0 }).flatten({ background: BACKGROUND.rgb }).jpeg({ quality: 90, mozjpeg: true }).toFile(join(outDir, 'poster.jpg'));
 }

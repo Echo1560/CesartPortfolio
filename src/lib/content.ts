@@ -7,9 +7,12 @@
  * §8); the function signatures and the returned types are the same for both.
  *
  *   local (default)  content/*.json + content/media/
- *   supabase         the live publish snapshot, fetched with the anon key. Media
- *                    must already be in content/media/: `npm run build` runs
- *                    scripts/prepare-content.ts first, which downloads it.
+ *   supabase         the live publish snapshot. `npm run build` runs
+ *                    scripts/prepare-content.ts first, which fetches it with
+ *                    the anon key, downloads its media into content/media/,
+ *                    validates it and writes it to generated/content.json.
+ *                    This module reads that file, so the build renders exactly
+ *                    the snapshot whose media was downloaded.
  *
  * Runs at build time only (Astro frontmatter, `getStaticPaths`). Do not import
  * it from client-side scripts.
@@ -17,9 +20,10 @@
 import { existsSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { marked } from 'marked';
+import sanitizeHtml from 'sanitize-html';
 import siteJson from '../../content/site.json';
 import worksJson from '../../content/works.json';
-import { contentSource, fetchPublishedContent, supabaseConfig } from './content-source';
+import { contentSource, readSnapshot, supabaseConfig } from './content-source';
 import type { Category, Layout, Site, Work } from './schema';
 import { validateContent, type ValidContent } from './validate';
 
@@ -43,13 +47,13 @@ let cache: Promise<ValidContent> | undefined;
 
 async function fromSource(): Promise<ValidContent> {
   if (contentSource() === 'local') return validateContent(siteJson, worksJson, mediaExists);
-  const { site, works } = await fetchPublishedContent(supabaseConfig());
+  const { site, works } = await readSnapshot(process.cwd(), supabaseConfig());
   return validateContent(site, works, mediaExists);
 }
 
 /**
  * Loads and validates all content once per build. Throws `ContentError` on
- * invalid content and `ContentSourceError` when Supabase cannot be read.
+ * invalid content and `ContentSourceError` when the Supabase snapshot was not prepared.
  */
 function load(): Promise<ValidContent> {
   cache ??= fromSource();
@@ -108,7 +112,22 @@ export async function getFeaturedWorks(): Promise<Work[]> {
   return options?.limit ? picked.slice(0, options.limit) : picked;
 }
 
-/** Renders a Markdown string from content (for example `about.body`) to HTML. Content is trusted (authored in the repo). */
+/**
+ * Allowlist for Markdown output. Content is NOT trusted: with
+ * CONTENT_SOURCE=supabase any editor writes it, and the public site shares an
+ * origin with /admin/. Scripts, event handlers, styles, images and
+ * non-http(s)/mailto links are removed.
+ */
+const MARKDOWN_SANITIZE: sanitizeHtml.IOptions = {
+  allowedTags: ['p', 'br', 'em', 'strong', 'a', 'ul', 'ol', 'li', 'h2', 'h3', 'h4', 'blockquote', 'code', 'pre'],
+  allowedAttributes: { a: ['href', 'title', 'rel'] },
+  allowedSchemes: ['http', 'https', 'mailto'],
+  allowedSchemesAppliedToAttributes: ['href'],
+  allowProtocolRelative: false,
+  disallowedTagsMode: 'discard',
+};
+
+/** Renders a Markdown string from content (for example `about.body`) to sanitized HTML. */
 export function renderMarkdown(markdown: string): string {
-  return marked.parse(markdown, { async: false });
+  return sanitizeHtml(marked.parse(markdown, { async: false }), MARKDOWN_SANITIZE);
 }
