@@ -9,6 +9,12 @@ import { fileURLToPath } from 'node:url';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 export const FIXTURE_ROOT = join(root, '.e2e-fixture');
 
+/** Animated works: one with WebM/MP4 variants next to the GIF, one with the GIF only. */
+export const ANIMATED_WORKS = {
+  withVariants: { slug: 'e2e-anim-video', title: 'E2E Animated Video', src: 'e2e-anim-video.gif' },
+  gifOnly: { slug: 'e2e-anim-gif', title: 'E2E Animated GIF', src: 'e2e-anim-gif.gif' },
+};
+
 /** Slug and media file of the work added with content only (no code change). */
 export const ADDED_WORK = { id: 'e2e-added-work', slug: 'e2e-added-work', title: 'E2E Added Work' };
 
@@ -40,6 +46,27 @@ export function buildFixture() {
     order: 999,
     placeholder: false,
     media: { ...template.media, src: 'e2e-added-work.jpg', alt: 'E2E added work image' },
+  });
+
+  // Animated works. Media files are tiny fixtures from tests/fixtures/media.
+  const mediaDir = join(FIXTURE_ROOT, 'content', 'media');
+  const fixtures = join(root, 'tests', 'fixtures', 'media');
+  cpSync(join(mediaDir, template.media.src), join(mediaDir, 'e2e-anim-poster.jpg'));
+  cpSync(join(fixtures, 'anim.gif'), join(mediaDir, ANIMATED_WORKS.withVariants.src));
+  cpSync(join(fixtures, 'anim.webm'), join(mediaDir, 'e2e-anim-video.webm'));
+  cpSync(join(fixtures, 'anim.mp4'), join(mediaDir, 'e2e-anim-video.mp4'));
+  cpSync(join(fixtures, 'anim.gif'), join(mediaDir, ANIMATED_WORKS.gifOnly.src));
+  Object.values(ANIMATED_WORKS).forEach(({ slug, title, src }, i) => {
+    works.push({
+      ...template,
+      id: slug,
+      slug,
+      title,
+      featured: false,
+      order: 1000 + i,
+      placeholder: false,
+      media: { type: 'animated', src, poster: 'e2e-anim-poster.jpg', alt: `${title} loop`, width: 64, height: 64, loop: true },
+    });
   });
   writeFileSync(worksFile, JSON.stringify(works, null, 2));
 
