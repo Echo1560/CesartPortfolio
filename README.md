@@ -80,4 +80,17 @@ npm run db:test    # pgTAP RLS/storage/seed tests
 npm run db:test:api
 ```
 
+Build from Supabase instead of `content/*.json` (the published snapshot and its media):
+
+```sh
+# one-off: upload content/media + upsert the draft tables (service-role key from env only, never committed)
+eval "$(npx supabase status -o env | grep -E '^(API_URL|ANON_KEY|SERVICE_ROLE_KEY)=')"
+SUPABASE_URL=$API_URL SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY npm run db:import   # add -- --publish to make it live
+
+CONTENT_SOURCE=supabase PUBLIC_SUPABASE_URL=$API_URL PUBLIC_SUPABASE_ANON_KEY=$ANON_KEY npm run build
+npm run test:parity   # builds local + supabase, diffs the HTML, checks the build fails when Supabase is down
+```
+
+For a hosted project, `db:import` needs `--hosted`. The build fails loudly if Supabase is unreachable, nothing is published or the content is invalid; it never falls back to local content.
+
 Contracts (schema, mapping to `schema.ts`, storage, Edge Functions, events, data layer): `docs/V2-CONTRACTS.md`.

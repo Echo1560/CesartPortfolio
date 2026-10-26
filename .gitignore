@@ -31,3 +31,9 @@ Thumbs.db
 
 # media downloaded from Supabase Storage at build time (CONTENT_SOURCE=supabase)
 content/media/uploads/
+
+# build-time WebM/MP4/poster variants of animated media (scripts/prepare-content.ts)
+generated/
+
+# parity test output (npm run test:parity)
+.parity/

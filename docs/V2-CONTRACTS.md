@@ -237,7 +237,7 @@ With `CONTENT_SOURCE=supabase`, before `astro build`:
 2. For every key in the snapshot (`src`, `poster`, `ogImage`, skipping embed URLs), download `GET {SUPABASE_URL}/storage/v1/object/authenticated/media/<key>` with the anon key into `content/media/<key>`. `content/media/uploads/` is git-ignored. Imported keys overwrite their identical committed copies.
 3. `validateContent` checks that every file now exists. `media.ts` keeps its `import.meta.glob('content/media/**')`, so no URL logic moves out of `media.ts`.
 
-A missing download fails the build.
+A missing download fails the build. Steps 1–3 run in `scripts/prepare-content.ts` (`npm run content:prepare`, the first half of `npm run build`), because `import.meta.glob` is resolved when the bundle is built and so files must be on disk before `astro build` starts. Prepare also writes the validated snapshot to `generated/content.json`, which `load()` reads (§8). A downloaded file whose bytes equal the local copy is not rewritten, so committed copies of imported keys never show as changed.
 
 ### Media variants (resolved by `media.ts` at build time)
 
@@ -249,6 +249,8 @@ Variants are generated at build time and are **not stored** in the database or t
 | `mp4` | H.264 (yuv420p, `+faststart`), no audio | |
 | `poster` | first frame as an image, run through `resolveImage` | used only when the content gives no `poster` |
 | `gif` fallback | the original file, untouched | `<img>` fallback, and the source for reduced motion when there is no poster |
+
+Implementation (`scripts/lib/variants.ts`, naming in `src/lib/media-variants.ts`): outputs go to `generated/media/<key>.webm`, `<key>.mp4` and `<key>.poster.jpg` (git-ignored), and are cached in `node_modules/.cache/cesart-media-variants/<sha256>/`, keyed by the source bytes plus a pipeline version. Transparent pixels are flattened onto the light page background (`#f6f5f2`), since H.264 has no alpha. `MEDIA_VARIANTS` = `auto` (default: warn and ship `sources: []` without ffmpeg), `required` (default when `CI` is set: fail without ffmpeg) or `off`.
 
 `ResolvedAnimated` gains one field. Everything else stays as it is:
 
@@ -265,7 +267,7 @@ export interface ResolvedAnimated {
 }
 ```
 
-Until the pipeline lands, `media.ts` fills `sources` from sibling files in `content/media/` named `<name>.webm` and `<name>.mp4` (same stem as the GIF). The pipeline should write its output to those paths. With no sibling files, `sources` is `[]` and the component renders the GIF `<img>`. Video playback is started and paused by `src/scripts/media.ts` (visible, hover, reduced motion), not by the `autoplay` attribute, so reduced motion never autoplays.
+`media.ts` fills `sources` from the pipeline output in `generated/media/` (see Implementation above). Hand-made sibling files in `content/media/` named `<name>.webm` and `<name>.mp4` (same stem as the GIF) are the fallback for a file the pipeline did not convert, for example a fixture build that skips `content:prepare`. With neither, `sources` is `[]` and the component renders the GIF `<img>`. Video playback is started and paused by `src/scripts/media.ts` (visible, hover, reduced motion), not by the `autoplay` attribute, so reduced motion never autoplays.
 
 Components render `sources` as a muted, `playsinline`, looping, script-started `<video>` with the GIF as fallback. Pause-when-off-screen and reduced-motion behaviour stay as in v1.
 
@@ -394,7 +396,7 @@ function load(): Promise<ValidContent>;
 | `CONTENT_SOURCE` | Behaviour |
 |---|---|
 | `local` (default) | v1: `content/*.json` + `content/media/`. Tests and offline dev use this. |
-| `supabase` | `POST {PUBLIC_SUPABASE_URL}/rest/v1/rpc/get_published_content` with `PUBLIC_SUPABASE_ANON_KEY` → `validateContent(snapshot.site, snapshot.works, mediaExists)`, after the media download in §4. |
+| `supabase` | `content:prepare` calls `POST {PUBLIC_SUPABASE_URL}/rest/v1/rpc/get_published_content` with `PUBLIC_SUPABASE_ANON_KEY` **once**, downloads the media (§4), validates, and writes the snapshot to `generated/content.json` (git-ignored, removed at the start of every prepare). `load()` reads that file → `validateContent(snapshot.site, snapshot.works, mediaExists)`, and fails if it is missing or was prepared for another `PUBLIC_SUPABASE_URL`. `astro build` makes no Supabase request, so it always renders the snapshot whose media was downloaded. |
 
 Environment variables (see `.env.example`):
 
@@ -406,6 +408,8 @@ Environment variables (see `.env.example`):
 | `GITHUB_DISPATCH_TOKEN` | Supabase secret | **yes** |
 | `PUBLISH_STATUS_TOKEN` | Supabase secret + GitHub Actions secret | **yes** |
 | `EVENTS_HASH_SECRET` | Supabase secret | **yes** |
+| `MEDIA_VARIANTS` | build (`auto` / `required` / `off`, see §4) | no |
+| `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | `npm run db:import` only, from the shell env (never `.env`, which every build loads) | **yes** (the key) |
 
 **Fail loud.** With `CONTENT_SOURCE=supabase`, the build throws and exits non-zero when any of these happens:
 
@@ -417,6 +421,11 @@ Environment variables (see `.env.example`):
 - `validateContent` fails
 
 It never falls back to local content or publishes an empty site. The error names the cause, for example `ContentSourceError: Supabase unreachable at <url>`.
+
+### Import and parity
+
+- `npm run db:import` (`scripts/import-to-supabase.mjs`) uploads every file referenced by `content/` to the bucket under its content path (upsert) and upserts the draft tables from `content/*.json` (placements and the featured list of the imported content are replaced). It is idempotent and keeps rows that are not in `content/`. `--publish` stores a `succeeded` publish run from `build_content(true)` unless the live snapshot already equals it. Any non-local URL needs `--hosted`.
+- `npm run test:parity` (local stack only, after `db:import`) builds with both sources, compares the output trees and every HTML page with `/_astro/` hashes ignored, and checks that `content:prepare` fails with `Supabase unreachable` against a closed port and that `astro build` then refuses to run without a prepared snapshot. CI runs it in the `database` job.
 
 ## 9. Local development and tests
 

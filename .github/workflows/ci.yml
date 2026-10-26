@@ -40,5 +40,11 @@ jobs:
       - run: npx supabase start -x studio,postgres-meta,logflare,vector,imgproxy,mailpit,realtime,edge-runtime
       - run: npm run db:test
       - run: npm run db:test:api
+      # Upload content/media to the bucket, then build once per CONTENT_SOURCE and diff the HTML.
+      - name: Import content into local Supabase
+        run: |
+          eval "$(npx supabase status -o env | grep -E '^(API_URL|SERVICE_ROLE_KEY)=')"
+          SUPABASE_URL="$API_URL" SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" npm run db:import
+      - run: npm run test:parity
       - if: always()
         run: npx supabase stop --no-backup
