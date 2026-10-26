@@ -32,10 +32,20 @@ const loading = eager ? 'eager' : 'lazy';
 {
   r.type === 'animated' && (
     <div class="media media--animated" data-animated={mode === 'tile' ? 'hover' : 'visible'} style={`aspect-ratio: ${ratio}`}>
-      {r.poster && <img class="media__poster" src={r.poster.src} srcset={r.poster.srcset} sizes={r.poster.sizes} width={r.width} height={r.height} alt={r.alt} loading={loading} decoding="async" />}
-      <img class="media__anim" data-src={r.src} width={r.width} height={r.height} alt={r.poster ? '' : r.alt} aria-hidden={r.poster ? 'true' : undefined} decoding="async" />
+      {r.sources.length > 0 ? (
+        <video class="media__video" poster={r.poster?.src} width={r.width} height={r.height} muted loop={r.loop} playsinline preload={eager ? 'auto' : 'metadata'} aria-label={r.alt}>
+          {r.sources.map((s) => (
+            <source src={s.src} type={s.mimeType} />
+          ))}
+        </video>
+      ) : (
+        <>
+          {r.poster && <img class="media__poster" src={r.poster.src} srcset={r.poster.srcset} sizes={r.poster.sizes} width={r.width} height={r.height} alt={r.alt} loading={loading} decoding="async" />}
+          <img class="media__anim" data-src={r.src} width={r.width} height={r.height} alt={r.poster ? '' : r.alt} aria-hidden={r.poster ? 'true' : undefined} decoding="async" />
+        </>
+      )}
       {mode === 'tile' && <span class="media__badge" aria-hidden="true">▶</span>}
-      {mode !== 'tile' && r.poster && (
+      {mode !== 'tile' && (r.poster || r.sources.length > 0) && (
         <button type="button" class="media__toggle" data-anim-toggle hidden>
           Play animation
         </button>
@@ -93,7 +103,7 @@ const loading = eager ? 'eager' : 'lazy';
   .media__poster, .media__anim { position: absolute; inset: 0; }
   .media__anim { opacity: 0; transition: opacity var(--dur-fast) var(--ease-out); }
   .media__anim[src] { opacity: 1; }
-  .media--video video { position: absolute; inset: 0; }
+  .media--video video, .media__video { position: absolute; inset: 0; }
   .media__badge {
     position: absolute; right: var(--space-3); bottom: var(--space-3); width: 2rem; height: 2rem;
     display: grid; place-items: center; border-radius: 50%; font-size: var(--text-xs); line-height: 1; padding-left: 2px;

@@ -265,7 +265,9 @@ export interface ResolvedAnimated {
 }
 ```
 
-Components render `sources` as a muted, `playsinline`, autoplaying, looping `<video>` with the GIF as fallback. Pause-when-off-screen and reduced-motion behaviour stay as in v1.
+Until the pipeline lands, `media.ts` fills `sources` from sibling files in `content/media/` named `<name>.webm` and `<name>.mp4` (same stem as the GIF). The pipeline should write its output to those paths. With no sibling files, `sources` is `[]` and the component renders the GIF `<img>`. Video playback is started and paused by `src/scripts/media.ts` (visible, hover, reduced motion), not by the `autoplay` attribute, so reduced motion never autoplays.
+
+Components render `sources` as a muted, `playsinline`, looping, script-started `<video>` with the GIF as fallback. Pause-when-off-screen and reduced-motion behaviour stay as in v1.
 
 ## 5. RPCs (PostgREST `POST /rest/v1/rpc/<name>`)
 

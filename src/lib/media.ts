@@ -56,6 +56,8 @@ export interface ResolvedAnimated {
   type: 'animated';
   /** Original animated file (GIF or animated WebP). */
   src: string;
+  /** Video variants of the animation, best first (WebM, then MP4). Empty when none exist: render the GIF `src` instead. */
+  sources: { src: string; mimeType: 'video/webm' | 'video/mp4' }[];
   width: number;
   height: number;
   alt: string;
@@ -133,6 +135,20 @@ async function rawUrl(path: string): Promise<string> {
   return load();
 }
 
+/**
+ * Video variants of an animated file: `<name>.webm` and `<name>.mp4` next to it in `content/media/`.
+ * The build pipeline (docs/V2-CONTRACTS.md, "Media variants") writes them there; until then the list is empty.
+ */
+async function animatedSources(path: string): Promise<ResolvedAnimated['sources']> {
+  const base = path.replace(/\.[^./]+$/, '');
+  const sources: ResolvedAnimated['sources'] = [];
+  for (const [ext, mimeType] of [['webm', 'video/webm'], ['mp4', 'video/mp4']] as const) {
+    const load = rawModules[`${MEDIA_PREFIX}${base}.${ext}`];
+    if (load) sources.push({ src: await load(), mimeType });
+  }
+  return sources;
+}
+
 /** Parses a YouTube or Vimeo page URL into a privacy-friendly embed URL. */
 export function embedUrl(provider: 'youtube' | 'vimeo', pageUrl: string): string {
   const url = new URL(pageUrl);
@@ -151,7 +167,7 @@ export async function resolveMedia(media: Media, options: ResolveOptions = {}): 
     case 'image':
       return resolveImage(media.src, media.alt, options);
     case 'animated':
-      return { type: 'animated', src: await rawUrl(media.src), width: media.width, height: media.height, alt: media.alt, loop: media.loop ?? true, poster };
+      return { type: 'animated', src: await rawUrl(media.src), sources: await animatedSources(media.src), width: media.width, height: media.height, alt: media.alt, loop: media.loop ?? true, poster };
     case 'video':
       if (!poster) throw new Error(`Video content/media/${media.src} has no poster.`);
       return {
