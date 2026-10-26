@@ -42,13 +42,15 @@ function boot(): void {
 }
 
 let shownFor: string | null = null;
+let loginMessage = '';
 
 async function route(hasSession: boolean | null): Promise<void> {
   const { data } = await sb().auth.getSession();
   const session = data.session;
   if (hasSession === false || !session) {
     shownFor = null;
-    renderLogin(root);
+    renderLogin(root, loginMessage);
+    loginMessage = '';
     return;
   }
   if (recovering) {
@@ -63,9 +65,8 @@ async function route(hasSession: boolean | null): Promise<void> {
   const { data: isEditor, error } = await sb().rpc('is_editor');
   if (error || isEditor !== true) {
     // Not an active editor: leave only the login form.
+    loginMessage = 'This account does not have dashboard access.';
     await sb().auth.signOut();
-    shownFor = null;
-    renderLogin(root, 'This account does not have dashboard access.');
     return;
   }
   shownFor = session.user.id;
