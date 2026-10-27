@@ -1,7 +1,7 @@
 /** Media library: upload, preview, replace, delete (with a usage warning). */
 import { clear, formatBytes, h, textInput, toast } from '../dom';
 import { stampText, type MediaRow } from '../data';
-import { ACCEPT, remove, replace, updateAlt, upload, usageOf } from '../library';
+import { ACCEPT, isLive, remove, replace, updateAlt, upload, usageOf } from '../library';
 import { thumb } from '../widgets';
 import type { ViewContext } from '../main';
 
@@ -63,10 +63,22 @@ export function renderMedia(el: HTMLElement, ctx: ViewContext): void {
         alert(`"${name}" is still used in the draft:\n\n- ${usage.places.join('\n- ')}\n\nReplace it in those places, or use "Replace file" to swap the picture everywhere. It cannot be deleted while it is in use.`);
         return;
       }
-      if (!confirm(`Delete "${name}" permanently? Nothing in the draft uses it.`)) return;
+      let live = false;
       try {
-        await remove(m);
-        toast('Deleted');
+        live = await isLive(m);
+      } catch (e) {
+        toast((e as Error).message, 'error');
+        return;
+      }
+      const message = live
+        ? `Delete "${name}" from the library?
+
+Used by the live site (until the next publish). The library entry is removed, but the file stays online until a publish drops it.`
+        : `Delete "${name}" permanently? The draft does not use it, and the live site does not either.`;
+      if (!confirm(message)) return;
+      try {
+        const { keptObject } = await remove(m);
+        toast(keptObject ? 'Removed from the library. The file stays online until the next publish.' : 'Deleted');
       } catch (e) {
         toast((e as Error).message, 'error');
       }

@@ -30,6 +30,7 @@ export async function probe(file: File): Promise<Probe> {
   const mime = file.type || EXT_TO_MIME[fileExt] || '';
   const ext = TYPES[mime];
   if (!ext) throw new Error(`${file.name}: this file type is not allowed. Use GIF, PNG, JPEG, WebP, MP4 or WebM.`);
+  if (!fileExt) throw new Error(`${file.name}: the file has no extension. Add one (.png, .jpg, .gif, .webp, .mp4 or .webm).`);
   if (fileExt && EXT_TO_MIME[fileExt] !== mime) throw new Error(`${file.name}: the file extension does not match its content type (${mime}).`);
   if (file.size > MAX_BYTES) throw new Error(`${file.name}: too large (${(file.size / 1024 / 1024).toFixed(1)} MiB). The limit is 25 MiB.`);
   if (file.size === 0) throw new Error(`${file.name}: the file is empty.`);
@@ -144,12 +145,25 @@ export function usageOf(id: string, draft: Draft): Usage {
   return { places };
 }
 
-export async function remove(row: MediaRow): Promise<void> {
+/** True when the live snapshot still serves this object. */
+export async function isLive(row: MediaRow): Promise<boolean> {
+  return ok(await sb().rpc('is_published_media', { p_path: row.storage_path })) === true;
+}
+
+/** Deletes the library row. The object is kept while the live site still uses it; returns whether it was kept. */
+export async function remove(row: MediaRow): Promise<{ keptObject: boolean }> {
+  // Checked before anything is deleted, so a failed check leaves everything as it was.
+  const live = await isLive(row);
   // Row first: it cannot be deleted while in use, and the object must outlive a failed delete.
   ok(await sb().from('media').delete().eq('id', row.id).select('id'));
+  if (live) {
+    forgetUrl(row.storage_path);
+    return { keptObject: true };
+  }
   const { error } = await sb().storage.from('media').remove([row.storage_path]);
   if (error) throw new Error(`The item was removed, but its file could not be deleted: ${explain(error)}`);
   forgetUrl(row.storage_path);
+  return { keptObject: false };
 }
 
 export async function updateAlt(id: string, alt: string): Promise<void> {

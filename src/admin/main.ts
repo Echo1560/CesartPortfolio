@@ -41,6 +41,9 @@ function boot(): void {
   void route(null);
 }
 
+/** The active shell's render function. One listener serves every login, so none pile up. */
+let currentShow: (() => Promise<void>) | null = null;
+window.addEventListener('hashchange', () => void currentShow?.());
 let shownFor: string | null = null;
 let loginMessage = '';
 
@@ -112,7 +115,7 @@ async function renderShell(email: string): Promise<void> {
     }
   };
   for (const [id, label] of ROUTES) nav.appendChild(h('a', { href: `#/${id}`, 'data-route': id }, label));
-  window.addEventListener('hashchange', () => void show());
+  currentShow = show;
   await show();
 }
 

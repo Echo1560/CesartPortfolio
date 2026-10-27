@@ -226,12 +226,16 @@ export async function removePlacement(id: string): Promise<void> {
   ok(await sb().from('media_placements').delete().eq('id', id).select('id'));
 }
 
+const GALLERY_OFFSET = 1000;
+
 /** Replaces a work's gallery. Positions are unique per work, so rows are rewritten rather than swapped. */
 export async function saveGallery(workId: string, values: PlacementValue[]): Promise<void> {
-  ok(await sb().from('media_placements').delete().eq('work_id', workId).eq('slot', 'work_gallery').select('id'));
-  if (values.length === 0) return;
-  const rows = values.map((v, i) => ({ slot: 'work_gallery' as const, work_id: workId, position: i, ...placementRowFields(v) }));
-  ok(await sb().from('media_placements').insert(rows).select('id'));
+  const old = ok(await sb().from('media_placements').select('id').eq('work_id', workId).eq('slot', 'work_gallery')) as { id: string }[];
+  // Insert the new rows at offset positions first: if that fails, the old gallery is untouched.
+  const rows = values.map((v, i) => ({ slot: 'work_gallery' as const, work_id: workId, position: GALLERY_OFFSET + i, ...placementRowFields(v) }));
+  const created = rows.length ? (ok(await sb().from('media_placements').insert(rows).select('id, position')) as { id: string; position: number }[]) : [];
+  if (old.length) ok(await sb().from('media_placements').delete().in('id', old.map((o) => o.id)).select('id'));
+  for (const c of created) ok(await sb().from('media_placements').update({ position: c.position - GALLERY_OFFSET }).eq('id', c.id).select('id'));
 }
 
 // ---------------------------------------------------------------------------

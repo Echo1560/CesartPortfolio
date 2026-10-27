@@ -91,8 +91,12 @@ export function renderLayout(el: HTMLElement, ctx: ViewContext): void {
       });
       // One request = one transaction, so the deferred unique positions can swap.
       ok(await sb().from('layout').upsert(rows, { onConflict: 'section_id' }).select('section_id'));
-      ok(await sb().from('layout_featured_works').delete().neq('work_id', '').select('work_id'));
-      if (featuredIds.length) ok(await sb().from('layout_featured_works').insert(featuredIds.map((work_id, position) => ({ work_id, position }))).select('work_id'));
+      // Upsert at offset positions first so a failure leaves the old list intact, then drop removed works and settle the positions.
+      const offset = 1000;
+      if (featuredIds.length) ok(await sb().from('layout_featured_works').upsert(featuredIds.map((work_id, position) => ({ work_id, position: offset + position })), { onConflict: 'work_id' }).select('work_id'));
+      const gone = draft.featured.map((f) => f.work_id).filter((id) => !featuredIds.includes(id));
+      if (gone.length) ok(await sb().from('layout_featured_works').delete().in('work_id', gone).select('work_id'));
+      if (featuredIds.length) ok(await sb().from('layout_featured_works').upsert(featuredIds.map((work_id, position) => ({ work_id, position })), { onConflict: 'work_id' }).select('work_id'));
       await ctx.refresh();
     });
   };
