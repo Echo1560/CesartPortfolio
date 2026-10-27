@@ -468,3 +468,13 @@ The seed also stores one `succeeded` publish run, so `get_published_content()` w
 - Never edit a merged migration. Add a new one, plus a `supabase/rollbacks/<version>_<name>.down.sql`.
 - New tables are not exposed by default: grant explicitly, `enable row level security`, and add policies. New functions in `public` are executable by `PUBLIC` until you `revoke execute ... from public`. `00_structure.test.sql` fails if a table lacks RLS or anon can reach something new.
 - Editable tables need `updated_at` and `updated_by` plus the two audit triggers (the structure test lists them).
+
+## 10. Admin dashboard (part 1)
+
+`/CesartPortfolio/admin/` is an Astro page with a plain TypeScript island in `src/admin/` (no UI framework). It uses `@supabase/supabase-js` with the anon key only; `PUBLIC_SUPABASE_URL` and `PUBLIC_SUPABASE_ANON_KEY` are read at build time. The page has `noindex,nofollow`, `public/robots.txt` disallows it (on a project site that file is served under `/CesartPortfolio/`, which crawlers ignore, so only the `noindex` meta tag actually protects the page), and nothing links to it.
+
+- **Auth:** email + password, logout, reset by email, session persistence. No sign-up UI. An account that is not an active editor (`is_editor()` false) is signed out and sees only the login form. Invite and reset links land on a "choose a password" form.
+- **Writes:** the dashboard edits the draft tables directly through RLS. Each form is validated with the `schema.ts` zod schemas before it writes.
+- **Reordering:** up/down buttons (keyboard friendly). Works write `sort_order` (10, 20, …). Layout sections are upserted in one request so the deferred unique positions can swap. Galleries and the featured list are rewritten (delete, then insert).
+- **Media:** uploads go to `uploads/<uuid>.<ext>` after checking type, extension and 25 MiB; replace uploads a new key and repoints the row (same kind only). A file that the draft uses cannot be deleted; the dialog lists where it is used. A file the live snapshot still serves (`is_published_media`) loses its library row but keeps its object until the next publish. Gallery and featured saves insert at offset positions before deleting, so a failed save leaves the old list in place.
+- **Preview:** `build_content(false)` → zod validation → a script-less sandboxed iframe. Astro components cannot run in a browser, so the preview mirrors their markup and class names and inlines `tokens.css` and `global.css`. Draft media is shown through signed URLs.

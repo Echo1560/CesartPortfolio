@@ -31,6 +31,7 @@
     "check:bundle": "node scripts/check-bundle-secrets.mjs"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.118.0",
     "astro": "^7.4.2",
     "marked": "^18.1.1",
     "sanitize-html": "^2.18.1",
