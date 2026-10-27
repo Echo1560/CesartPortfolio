@@ -1,0 +1,6 @@
+{
+  "nodeModulesDir": "none",
+  "compilerOptions": { "strict": true },
+  "fmt": { "lineWidth": 130, "singleQuote": true },
+  "test": { "include": ["**/*.test.ts"] }
+}

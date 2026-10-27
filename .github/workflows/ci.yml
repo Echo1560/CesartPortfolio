@@ -21,6 +21,7 @@ jobs:
       - run: npm test
       - run: npm run validate:content
       - run: npm run build
+      - run: npm run check:bundle
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
       - run: npx lhci autorun
@@ -46,5 +47,23 @@ jobs:
           eval "$(npx supabase status -o env | grep -E '^(API_URL|SERVICE_ROLE_KEY)=')"
           SUPABASE_URL="$API_URL" SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" npm run db:import
       - run: npm run test:parity
+      - if: always()
+        run: npx supabase stop --no-backup
+
+  functions:
+    # Edge Functions (Deno) under `supabase functions serve` against local
+    # Supabase, GitHub API mocked. Needs Auth's mail server (mailpit) for invites.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          check-latest: true
+          cache: npm
+      - run: npm ci
+      - run: npm run functions:check
+      - run: npx supabase start -x studio,postgres-meta,logflare,vector,imgproxy,realtime
+      - run: npm run functions:test
       - if: always()
         run: npx supabase stop --no-backup

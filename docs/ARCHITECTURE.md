@@ -99,7 +99,9 @@ type TrackEvent = 'page_view' | 'work_open' | 'video_play' | 'contact_click';
 function track(event: TrackEvent, payload?: Record<string, unknown>): void;
 ```
 
-In v1 it does nothing: no network, no cookies, no storage. UI code calls it at the moments the artist will want metrics for. It is the only `src/lib` module that client scripts may import.
+UI code calls it at the moments the artist will want metrics for. It is the only `src/lib` module that client scripts may import.
+
+In v1 it did nothing. Since v2 it sends one `navigator.sendBeacon` (`text/plain` JSON) to the `track` Edge Function at `{PUBLIC_SUPABASE_URL}/functions/v1/track`, with no cookies and no storage. It stays a no-op when `PUBLIC_SUPABASE_URL` is unset (local dev, tests) and on the `/admin` pages. See `docs/V2-CONTRACTS.md` §6–7 and `supabase/functions/README.md`.
 
 ## How a backend and dashboard replace each piece
 
