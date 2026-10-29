@@ -65,9 +65,20 @@ Site text (hero, about, contact, social links, SEO), categories and the order an
 
 The site is published to GitHub Pages at https://echo1560.github.io/CesartPortfolio/ (base path `/CesartPortfolio/`).
 
-- **Deploy:** every push to `main` runs `.github/workflows/deploy.yml` (`npm ci && npm run build`, upload `dist/`, `actions/deploy-pages`). It can also be run manually from the Actions tab (`workflow_dispatch`). Pages source is set to **GitHub Actions** in repo settings.
-- **PR check:** `.github/workflows/ci.yml` runs type check, unit tests, content validation, build and e2e on every pull request.
-- **Secrets:** none needed for v1. Future secrets go in GitHub's secret store, with names listed in `.env.example`.
+- **Deploy:** `.github/workflows/deploy.yml` runs on a push to `main`, on `repository_dispatch` (type `publish`, sent by the dashboard's Publish button through the `publish` Edge Function) and manually (Actions tab, `workflow_dispatch`). It installs ffmpeg, runs `npm run build` (`content:prepare` + `astro build`, `MEDIA_VARIANTS=required`, video variants cached), runs `npm run check:bundle`, then publishes to Pages. Pages source is **GitHub Actions** in repo settings.
+- **Content source:** with the Supabase secrets set it builds `CONTENT_SOURCE=supabase` and fails loudly if they are missing (publish and manual runs) or Supabase is unreachable. A push to `main` without them builds the local v1 content and warns, so the site keeps deploying before hosting exists.
+- **Publish status:** for a `publish` dispatch the workflow reports `building`, then `succeeded` or `failed` (with the run URL) to the `publish-status` function using the `x-publish-token` header. The token is masked and never printed.
+- **Keep-alive:** `.github/workflows/keep-alive.yml` reads `get_published_content()` with the anon key every 3 days so the free hosted project is not paused. It exits cleanly when the secrets are unset.
+- **PR / main checks:** `.github/workflows/ci.yml` runs on pull requests and pushes to `main`: type check, unit tests, content validation, build, bundle secret check, Playwright e2e and Lighthouse; a `database` job (local Supabase: seed check, pgTAP RLS/storage tests, API checks, content parity); a `functions` job (Deno type check and Edge Function tests, GitHub mocked); and a `secrets` job (gitleaks over the full history).
+- **Secrets** (GitHub: Settings > Secrets and variables > Actions; values are never in the repo):
+
+  | Secret | Used by | Value |
+  |---|---|---|
+  | `SUPABASE_URL` | deploy, keep-alive | hosted project URL, e.g. `https://<ref>.supabase.co` |
+  | `SUPABASE_ANON_KEY` | deploy, keep-alive | anon / publishable key (public by design, RLS protects the data) |
+  | `PUBLISH_STATUS_TOKEN` | deploy | same random value as the Edge Function secret of that name |
+
+  `SUPABASE_SERVICE_ROLE_KEY` is **not** a repo secret: it is only used by `npm run db:import`, run locally. The Edge Function secrets (`GITHUB_DISPATCH_TOKEN`, `PUBLISH_STATUS_TOKEN`, `EVENTS_HASH_SECRET`) are set with `supabase secrets set`, see `supabase/functions/README.md`.
 - **Roll back:** revert the bad commit on `main` (`git revert <sha>` via PR); the deploy workflow redeploys the previous good state. For an immediate rollback, re-run the deploy workflow from the last good commit in the Actions tab.
 
 ## Backend (v2, local Supabase)
