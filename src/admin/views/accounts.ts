@@ -96,9 +96,12 @@ export async function renderAccounts(el: HTMLElement, _ctx: ViewContext): Promis
 
   const pw = textInput('', { type: 'password', autocomplete: 'new-password', required: true });
   const again = textInput('', { type: 'password', autocomplete: 'new-password', required: true });
-  const fp = field('New password', pw, 'At least 8 characters.'), fa = field('Repeat the new password', again);
+  const fp = field('New password', pw, 'At least 10 characters.'), fa = field('Repeat the new password', again);
+  const code = textInput('', { autocomplete: 'one-time-code', inputmode: 'numeric' });
+  const fc = field('Code from your email', code, 'We emailed you a code to confirm it is you.');
+  fc.el.hidden = true;
   const save = h('button', { type: 'submit', class: 'btn' }, 'Change password');
-  const pwForm = h('form', { novalidate: true, class: 'stack' }, fp.el, fa.el, save);
+  const pwForm = h('form', { novalidate: true, class: 'stack' }, fp.el, fa.el, fc.el, save);
   pwForm.onsubmit = (ev) => {
     ev.preventDefault();
     const parsed = passwordSchema.safeParse(pw.value);
@@ -107,9 +110,23 @@ export async function renderAccounts(el: HTMLElement, _ctx: ViewContext): Promis
     fa.setError(same ? null : 'The passwords do not match');
     if (!parsed.success || !same) return;
     void runSave(save, async () => {
-      const { error: e } = await sb().auth.updateUser({ password: pw.value });
-      if (e) throw new Error(explain(e));
-      pw.value = again.value = '';
+      const nonce = code.value.trim();
+      const { error: e } = await sb().auth.updateUser(nonce ? { password: pw.value, nonce } : { password: pw.value });
+      if (e) {
+        // Sessions older than 24 hours must confirm with an emailed code (secure_password_change).
+        if (e.code === 'reauthentication_needed' || e.code === 'reauthentication_not_valid') {
+          if (e.code === 'reauthentication_needed' || !nonce) {
+            const r = await sb().auth.reauthenticate();
+            if (r.error) throw new Error(explain(r.error));
+          }
+          fc.el.hidden = false;
+          code.focus();
+          throw new Error(e.code === 'reauthentication_needed' ? 'We emailed you a code. Enter it and choose Change password again.' : 'That code is not valid. We sent a new one.');
+        }
+        throw new Error(explain(e));
+      }
+      pw.value = again.value = code.value = '';
+      fc.el.hidden = true;
     }, 'Password changed');
   };
   sections.push(card('Your password', null, pwForm));

@@ -53,14 +53,21 @@ export async function renderPublish(el: HTMLElement, _ctx: ViewContext): Promise
     }
   };
 
+  let pollError: HTMLElement | null = null;
   const poll = async () => {
+    window.clearTimeout(timer);
     if (!statusEl.isConnected) return;
     try {
       const runs = await listRuns();
+      pollError?.remove();
+      pollError = null;
       paint(runs);
       if (inFlight(runs[0])) timer = window.setTimeout(() => void poll(), POLL_MS);
     } catch (e) {
-      statusEl.appendChild(h('p', { class: 'field__error', role: 'alert' }, (e as Error).message));
+      pollError?.remove();
+      pollError = h('p', { class: 'field__error', role: 'alert' }, (e as Error).message);
+      statusEl.appendChild(pollError);
+      button.disabled = false;
       timer = window.setTimeout(() => void poll(), POLL_MS * 3);
     }
   };

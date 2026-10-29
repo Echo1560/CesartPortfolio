@@ -41,18 +41,19 @@ export async function renderActivity(el: HTMLElement, _ctx: ViewContext): Promis
   const more = h('button', { type: 'button', class: 'btn btn--ghost', hidden: true }, 'Show older');
   const err = h('p', { class: 'field__error', role: 'alert', hidden: true });
   let offset = 0;
+  let reqId = 0;
 
   const load = async (append: boolean) => {
     err.hidden = true;
-    if (!append) {
-      offset = 0;
-      clear(list);
-    }
+    const seq = ++reqId;
+    if (!append) offset = 0;
     let q = sb().from('activity_log').select('id, occurred_at, actor_name, action, table_name, row_id, details').order('occurred_at', { ascending: false }).order('id', { ascending: false }).range(offset, offset + PAGE - 1);
     if (who.value) q = q.eq('actor_name', who.value);
     if (what.value) q = q.eq('action', what.value);
     if (where.value) q = q.eq('table_name', where.value);
     const { data, error } = await q;
+    if (seq !== reqId) return;
+    if (!append) clear(list);
     if (error) {
       err.textContent = explain(error);
       err.hidden = false;

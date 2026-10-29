@@ -80,7 +80,9 @@ export async function renderStats(el: HTMLElement, _ctx: ViewContext): Promise<v
   const customRow = h('div', { class: 'row', hidden: true });
   customRow.append(field('From', from).el, field('To (inclusive)', to).el);
 
+  let reqId = 0;
   const load = async () => {
+    const seq = ++reqId;
     err.hidden = true;
     let start: Date, end: Date;
     if (range.value === 'custom') {
@@ -105,6 +107,7 @@ export async function renderStats(el: HTMLElement, _ctx: ViewContext): Promise<v
         rpc<Referrer>('stats_referrers', { ...args, p_limit: 10 }),
         rpc<Device>('stats_devices', args),
       ]);
+      if (seq !== reqId) return;
       const o = overview[0];
       clear(out);
       const tiles: [string, number][] = o ? [['Page views', o.page_views], ['Visitors', o.visitors], ['Work opens', o.work_opens], ['Video plays', o.video_plays], ['Contact clicks', o.contact_clicks]] : [];
@@ -113,13 +116,14 @@ export async function renderStats(el: HTMLElement, _ctx: ViewContext): Promise<v
         card('Visits over time', null, dailyChart(daily)),
         card('Top works', null, barTable('Works by opens', ['Work', 'Opens and plays'], works.map((w) => [w.title ?? w.work_slug, Number(w.opens), `${num(w.opens)} opens Â· ${num(w.video_plays)} plays`]))),
         card('Referrers', null, barTable('Referrers by page views', ['Source', 'Page views'], refs.map((r) => [r.referrer_host, Number(r.page_views)]))),
-        card('Devices', null, barTable('Page views by device', ['Device', 'Page views'], devices.map((d) => [d.device, Number(d.page_views)]))),
+        card('Devices', null, h('p', { class: 'field__hint' }, 'Includes bots, shown as “bot”.'), barTable('Page views by device', ['Device', 'Page views'], devices.map((d) => [d.device, Number(d.page_views)]))),
       );
     } catch (e) {
+      if (seq !== reqId) return;
       err.textContent = (e as Error).message;
       err.hidden = false;
     } finally {
-      out.setAttribute('aria-busy', 'false');
+      if (seq === reqId) out.setAttribute('aria-busy', 'false');
     }
   };
 
@@ -128,6 +132,6 @@ export async function renderStats(el: HTMLElement, _ctx: ViewContext): Promise<v
     void load();
   };
   from.onchange = to.onchange = () => void load();
-  el.append(h('h1', {}, 'Stats'), h('p', { class: 'field__hint' }, 'Privacy-friendly counts of real visits. Bots are left out. Times are UTC.'), h('div', { class: 'row' }, field('Date range', range).el), customRow, err, out);
+  el.append(h('h1', {}, 'Stats'), h('p', { class: 'field__hint' }, 'Privacy-friendly counts of real visits. Bots are left out except in the device split. Times are UTC.'), h('div', { class: 'row' }, field('Date range', range).el), customRow, err, out);
   await load();
 }
