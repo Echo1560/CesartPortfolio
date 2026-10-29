@@ -116,7 +116,7 @@ export async function renderStats(el: HTMLElement, _ctx: ViewContext): Promise<v
         card('Visits over time', null, dailyChart(daily)),
         card('Top works', null, barTable('Works by opens', ['Work', 'Opens and plays'], works.map((w) => [w.title ?? w.work_slug, Number(w.opens), `${num(w.opens)} opens Â· ${num(w.video_plays)} plays`]))),
         card('Referrers', null, barTable('Referrers by page views', ['Source', 'Page views'], refs.map((r) => [r.referrer_host, Number(r.page_views)]))),
-        card('Devices', null, h('p', { class: 'field__hint' }, 'Includes bots, shown as “bot”.'), barTable('Page views by device', ['Device', 'Page views'], devices.map((d) => [d.device, Number(d.page_views)]))),
+        card('Devices', null, h('p', { class: 'field__hint' }, 'Includes bots, shown as "bot".'), barTable('Page views by device', ['Device', 'Page views'], devices.map((d) => [d.device, Number(d.page_views)]))),
       );
     } catch (e) {
       if (seq !== reqId) return;
