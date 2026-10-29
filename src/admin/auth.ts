@@ -4,7 +4,7 @@ import { applyIssues, clear, field, h, textInput, type Field } from './dom';
 import { explain, sb } from './supabase';
 
 const emailSchema = z.email('Enter a valid email address');
-const passwordSchema = z.string().min(8, 'Use at least 8 characters');
+export const passwordSchema = z.string().min(10, 'Use at least 10 characters');
 
 function card(title: string, ...children: (Node | null)[]): HTMLElement {
   return h('section', { class: 'auth', 'aria-labelledby': 'auth-title' }, h('h1', { id: 'auth-title' }, title), ...children);
@@ -69,7 +69,7 @@ export function renderSetPassword(root: HTMLElement, onDone: () => void): void {
   clear(root);
   const pw = textInput('', { type: 'password', autocomplete: 'new-password', required: true });
   const again = textInput('', { type: 'password', autocomplete: 'new-password', required: true });
-  const fields = { password: field('New password', pw, 'At least 8 characters.'), confirm: field('Repeat the new password', again) };
+  const fields = { password: field('New password', pw, 'At least 10 characters.'), confirm: field('Repeat the new password', again) };
   const status = h('p', { class: 'field__error', role: 'alert', hidden: true });
   const form = h('form', { novalidate: true, class: 'stack' }, fields.password.el, fields.confirm.el, status, h('button', { type: 'submit', class: 'btn' }, 'Save password'));
   form.onsubmit = async (e) => {
