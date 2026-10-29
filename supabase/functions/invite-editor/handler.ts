@@ -3,6 +3,7 @@
 // (docs/V2-CONTRACTS.md §6).
 import { requireOwner, rpcError, serviceClient } from '../_shared/auth.ts';
 import { HttpError, ok, readJsonObject, serve } from '../_shared/http.ts';
+import { rollbackInvitedUser } from './rollback.ts';
 
 export const INVITES_PER_DAY = 10;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -17,6 +18,7 @@ function parse(body: Record<string, unknown>): { email: string; displayName: str
 }
 
 export const handler = serve(['POST'], async (req) => {
+  const requestStart = Date.now();
   const caller = await requireOwner(req);
   const { email, displayName } = parse(await readJsonObject(req, 2048));
   const admin = serviceClient();
@@ -55,9 +57,8 @@ export const handler = serve(['POST'], async (req) => {
     p_invited_by: caller.id,
   });
   if (reg.error) {
-    // Do not leave an invited auth user without an editors row.
-    const undo = await admin.auth.admin.deleteUser(user.id);
-    if (undo.error) console.error('could not roll back invited user', user.id, undo.error);
+    // Do not leave a newly invited auth user without an editors row.
+    await rollbackInvitedUser(admin.auth.admin, user, requestStart);
     throw rpcError(reg.error, { '23505': 'conflict' });
   }
 
