@@ -4,7 +4,7 @@ import { applyIssues, clear, field, h, textInput, type Field } from './dom';
 import { explain, sb } from './supabase';
 
 const emailSchema = z.email('Enter a valid email address');
-const passwordSchema = z.string().min(8, 'Use at least 8 characters');
+export const passwordSchema = z.string().min(8, 'Use at least 8 characters');
 
 function card(title: string, ...children: (Node | null)[]): HTMLElement {
   return h('section', { class: 'auth', 'aria-labelledby': 'auth-title' }, h('h1', { id: 'auth-title' }, title), ...children);
