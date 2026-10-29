@@ -1,0 +1,31 @@
+name: Keep Supabase alive
+
+# The free hosted project pauses after a week without activity. A trivial anon read
+# every 3 days keeps it awake. Does nothing until SUPABASE_URL / SUPABASE_ANON_KEY are set.
+on:
+  schedule:
+    - cron: '17 6 */3 * *'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    env:
+      SB_URL: ${{ secrets.SUPABASE_URL }}
+      SB_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+    steps:
+      - run: |
+          if [ -z "$SB_URL" ] || [ -z "$SB_KEY" ]; then
+            echo "::notice::SUPABASE_URL / SUPABASE_ANON_KEY are not set; nothing to keep alive."
+            exit 0
+          fi
+          code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 30 -X POST \
+            -H "apikey: $SB_KEY" -H "content-type: application/json" -d '{}' \
+            "${SB_URL%/}/rest/v1/rpc/get_published_content") || code=000
+          if [ "$code" != "200" ]; then
+            echo "::error title=Keep-alive failed::get_published_content() answered HTTP $code. The project may be paused or the secrets wrong."
+            exit 1
+          fi
+          echo "Supabase answered HTTP 200."
