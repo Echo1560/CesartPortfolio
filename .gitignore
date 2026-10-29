@@ -37,3 +37,4 @@ generated/
 
 # parity test output (npm run test:parity)
 .parity/
+.e2e-admin/
