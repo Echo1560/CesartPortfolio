@@ -163,8 +163,8 @@ export async function renderEditor(el: HTMLElement, opts: { slug?: string; email
   canvas = mountCanvas(stage, store, {
     onEditable: setFmt,
     onMedia: (_sel, slot, open) => panel.focusMedia(slot, open),
-    onInsert: (index) => void pickSection(store, index),
-    onAddBlock: (sectionId, column) => void pickBlock(store, sectionId, column),
+    onInsert: (index) => void pickSection(store, index, document.activeElement),
+    onAddBlock: (sectionId, column) => void pickBlock(store, sectionId, column, document.activeElement),
   });
   el.append(topbar, fmt, notice, h('div', { class: 'editor__body' }, h('div', { class: 'editor__canvas' }, stage), panelHost));
 

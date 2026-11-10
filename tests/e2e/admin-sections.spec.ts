@@ -127,7 +127,7 @@ test('a section is added from the picker, reordered by drag and by keyboard, cha
   await page.mouse.up();
   await expect.poll(async () => (await order(page)).indexOf('columns')).toBe(original.indexOf('gallery') + 1);
   await settled(page);
-  expect(types(backend)).toEqual(original.filter((x) => x !== 'gallery' && original.indexOf(x) < original.indexOf('gallery') + 1).concat(['gallery', 'columns'], original.slice(original.indexOf('gallery') + 1)).filter((x, i, a) => a.indexOf(x) === i || x === 'columns' || x === 'gallery'));
+  expect(types(backend)).toEqual(['hero', 'featured', 'gallery', 'columns', 'cta', 'about', 'contact']);
 
   // variant
   await canvas(page).locator(`[data-section-id="${columnsId}"]`).click({ position: { x: 4, y: 4 } });
@@ -254,7 +254,6 @@ test('gallery and featured sections choose their works and the order from the pa
   expect(gallery['settings'].sort).toBe('title');
 
   await canvas(page).locator('[data-section-type="featured"]').click({ position: { x: 4, y: 4 } });
-  const first = snapshot.works[0]!;
   const second = snapshot.works[1]!;
   await panel.getByRole('checkbox', { name: second.title }).check();
   await settled(page);
@@ -264,7 +263,6 @@ test('gallery and featured sections choose their works and the order from the pa
   await panel.getByRole('button', { name: `Move ${second.title} up` }).click();
   await settled(page);
   expect(featured().indexOf(second.id)).toBeLessThan(ids.indexOf(second.id));
-  expect(first.id).toBeTruthy();
 });
 
 test('hover shows the section toolbar, and every toolbar action is a labelled button', async ({ page }) => {
@@ -276,4 +274,56 @@ test('hover shows the section toolbar, and every toolbar action is a labelled bu
   for (const name of [/^Drag hero section/, 'Move hero section up', 'Move hero section down', 'Duplicate hero section', 'Settings of hero section', 'Delete hero section']) await expect(bar.getByRole('button', { name })).toBeVisible();
   await expect(bar.getByRole('button', { name: 'Move hero section up' })).toBeDisabled();
   expect(HERO.type).toBe('hero');
+});
+
+test('moving a section with the handle moves that section when a hidden one sits between two visible ones', async ({ page }) => {
+  const backend = live();
+  backend.tables['sections']!.find((r) => r['type'] === 'featured')!['show_on_desktop'] = false;
+  await mountAdmin(page, backend);
+  await expect(canvas(page).locator('.hero__title')).toBeVisible();
+  const gallery = canvas(page).locator('main > [data-section-type="gallery"]');
+  await gallery.hover();
+  const galleryId = (await gallery.getAttribute('data-section-id'))!;
+  await canvas(page).locator(`.ed-tb--section[data-for="${galleryId}"] [data-ed="drag"]`).focus();
+  await page.keyboard.press('ArrowDown');
+  await expect.poll(() => order(page)).toEqual(['hero', 'featured', 'cta', 'gallery', 'about', 'contact']);
+  await settled(page);
+  expect(types(backend)).toEqual(['hero', 'featured', 'cta', 'gallery', 'about', 'contact']);
+});
+
+test('the 25th featured work cannot be ticked, and the panel says why', async ({ page }) => {
+  const backend = live();
+  const build = backend.rpc['build_content_v3']!;
+  const extra = Array.from({ length: 20 }, (_, i) => ({ ...snapshot.works[0]!, id: `extra-${i + 1}`, slug: `extra-${i + 1}`, title: `Extra work ${i + 1}` }));
+  backend.rpc['build_content_v3'] = (...args: unknown[]) => {
+    const out = (build as (...a: unknown[]) => any)(...args);
+    return { ...out, works: [...out.works, ...extra] };
+  };
+  await mountAdmin(page, backend);
+  await expect(canvas(page).locator('.hero__title')).toBeVisible();
+  await canvas(page).locator('[data-section-type="featured"]').click({ position: { x: 4, y: 4 } });
+  const panel = page.getByRole('complementary', { name: 'Settings' });
+  const boxes = panel.locator('.worklist input[type="checkbox"]');
+  const count = await boxes.count();
+  expect(count).toBeGreaterThan(24);
+  const checked = panel.locator('.worklist input[type="checkbox"]:checked');
+  while ((await checked.count()) < 24) await panel.locator('.worklist input[type="checkbox"]:not(:checked)').first().click();
+  await expect(panel.locator('.worklist input[type="checkbox"]:checked')).toHaveCount(24);
+  await expect(panel.locator('.worklist input[type="checkbox"]:not(:checked)').first()).toBeDisabled();
+  await expect(panel.getByText(/maximum of 24 works/)).toBeVisible();
+  await settled(page);
+  expect((sectionRows(backend).find((r) => r['type'] === 'featured')!['settings'].workIds as string[]).length).toBe(24);
+});
+
+test('keyboard focus returns to the button that opened the section picker', async ({ page }) => {
+  await mountAdmin(page, live());
+  await expect(canvas(page).locator('.hero__title')).toBeVisible();
+  const add = page.getByRole('button', { name: 'Add a section' });
+  await add.focus();
+  await page.keyboard.press('Enter');
+  const dialog = page.getByRole('dialog', { name: 'Add a section' });
+  await expect(dialog).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  await expect(add).toBeFocused();
 });

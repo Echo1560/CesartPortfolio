@@ -40,7 +40,7 @@ function jsonSchema(schema: z.ZodType): Json {
 let catalog: { works: { id: string; title: string; tags: string[]; categoryId: string }[]; categories: { id: string; label: string }[] } = { works: [], categories: [] };
 
 /** A checklist of works. `ordered` keeps the chosen ones first, in order, with up/down buttons. */
-function workList(ids: string[], onChange: (ids: string[]) => void, ordered = true): HTMLElement {
+function workList(ids: string[], onChange: (ids: string[]) => void, ordered = true, max = Infinity): HTMLElement {
   const host = h('div', { class: 'worklist' });
   let chosen = [...ids];
   const paint = () => {
@@ -49,6 +49,7 @@ function workList(ids: string[], onChange: (ids: string[]) => void, ordered = tr
     const title = (id: string) => catalog.works.find((w) => w.id === id)?.title ?? id;
     const row = (id: string, on: boolean, index: number) => {
       const c = checkbox(title(id), on);
+      c.input.disabled = !on && chosen.length >= max;
       c.input.addEventListener('change', () => {
         chosen = c.input.checked ? [...chosen, id] : chosen.filter((x) => x !== id);
         onChange(chosen);
@@ -64,6 +65,7 @@ function workList(ids: string[], onChange: (ids: string[]) => void, ordered = tr
     };
     chosen.forEach((id, i) => list.appendChild(row(id, true, i)));
     for (const w of catalog.works) if (!chosen.includes(w.id)) list.appendChild(row(w.id, false, 0));
+    if (Number.isFinite(max) && chosen.length >= max) host.appendChild(h('p', { class: 'field__hint', 'data-hint': 'work-cap' }, `A maximum of ${max} works can be chosen. Untick one to pick another.`));
     host.appendChild(list);
   };
   paint();
@@ -111,7 +113,7 @@ function formFor(schema: Json, value: Json, set: (path: string[], v: unknown) =>
     if (key === 'source') {
       out.push(...workSourceControls(current, (v) => set(here, v)));
     } else if (key === 'workIds' && prop['type'] === 'array') {
-      out.push(h('fieldset', { class: 'panel__group' }, h('legend', {}, 'Featured works (in this order)'), workList(Array.isArray(current) ? current : [], (v) => set(here, v))));
+      out.push(h('fieldset', { class: 'panel__group' }, h('legend', {}, 'Featured works (in this order)'), workList(Array.isArray(current) ? current : [], (v) => set(here, v), true, typeof prop['maxItems'] === 'number' ? prop['maxItems'] : 24)));
     } else if (key === 'columns' && prop['type'] === 'integer') {
       const options: [string, string][] = [];
       for (let n = prop['minimum'] ?? 2; n <= (prop['maximum'] ?? 4); n++) options.push([String(n), String(n)]);
@@ -328,7 +330,7 @@ export function createPanel(host: HTMLElement, store: EditorStore): Panel {
       for (const b of inColumn) list.appendChild(h('li', {}, h('button', { type: 'button', class: 'link', onclick: () => store.select({ sectionId: section.id, blockId: b.id }) }, BLOCK_INFO[b.type].label)));
       if (!inColumn.length) list.appendChild(h('li', { class: 'field__hint' }, 'No blocks yet.'));
       if (count > 1) host.appendChild(h('p', { class: 'panel__crumbs' }, `Column ${col + 1}`));
-      host.append(list, act(`add-block-${col}`, count > 1 ? `Add a block to column ${col + 1}` : 'Add a block', 'Add a block', () => void pickBlock(store, section.id, col)));
+      host.append(list, act(`add-block-${col}`, count > 1 ? `Add a block to column ${col + 1}` : 'Add a block', 'Add a block', () => void pickBlock(store, section.id, col, document.activeElement)));
     }
     return host;
   };
@@ -505,7 +507,7 @@ export function createPanel(host: HTMLElement, store: EditorStore): Panel {
       host.append(
         h('h2', { class: 'panel__title' }, page?.title ?? 'No page'),
         h('p', { class: 'field__hint' }, 'Click a section on the page to change its settings. Click text to edit it in place; click an image to replace it.'),
-        h('button', { type: 'button', class: 'btn', 'data-act': 'add-section', onclick: () => void pickSection(store, page?.sections.length ?? 0) }, 'Add a section'),
+        h('button', { type: 'button', class: 'btn', 'data-act': 'add-section', onclick: (e: Event) => void pickSection(store, page?.sections.length ?? 0, e.currentTarget as Element) }, 'Add a section'),
         ...(page ? [h('p', { class: 'stamp' }, `/${page.isHome ? '' : page.slug}${page.status !== 'published' ? ` · ${page.status}` : ''}`)] : []),
       );
       return;
