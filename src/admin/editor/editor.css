@@ -45,3 +45,4 @@
   .editor__body { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) 14rem; }
   .editor__panel { border-left: 0; border-top: 1px solid var(--color-border); }
 }
+.bar[hidden], .banner[hidden] { display: none; }

@@ -92,8 +92,9 @@ function walk(node: Node, marks: MarkKey[], out: { text?: string; marks: MarkKey
     if (text) out.push({ text, marks });
     return;
   }
-  if (!(node instanceof HTMLElement)) return;
-  const tag = node.tagName;
+  if (node.nodeType !== Node.ELEMENT_NODE) return; // not `instanceof`: the page lives in another window
+  const el = node as HTMLElement;
+  const tag = el.tagName;
   if (tag === 'BR') {
     out.push({ br: true, marks: [] });
     return;
@@ -102,10 +103,10 @@ function walk(node: Node, marks: MarkKey[], out: { text?: string; marks: MarkKey
   if (tag === 'STRONG' || tag === 'B') next = [...marks, 'bold'];
   else if (tag === 'EM' || tag === 'I') next = [...marks, 'italic'];
   else if (tag === 'A') {
-    const href = hrefOf(node as HTMLAnchorElement, base);
+    const href = hrefOf(el as HTMLAnchorElement, base);
     if (href) next = [...marks, `link:${href}`];
-  } else if (node.style.fontWeight === 'bold' || Number(node.style.fontWeight) >= 600) next = [...marks, 'bold'];
-  else if (node.style.fontStyle === 'italic') next = [...marks, 'italic'];
+  } else if (el.style.fontWeight === 'bold' || Number(el.style.fontWeight) >= 600) next = [...marks, 'bold'];
+  else if (el.style.fontStyle === 'italic') next = [...marks, 'italic'];
   for (const child of node.childNodes) walk(child, next, out, base);
 }
 
@@ -157,7 +158,7 @@ export function richOf(root: HTMLElement, base: string): RichText {
     loose = [];
   };
   for (const child of root.childNodes) {
-    const tag = child instanceof HTMLElement ? child.tagName : '';
+    const tag = child.nodeType === Node.ELEMENT_NODE ? (child as HTMLElement).tagName : '';
     if (/^H[1-6]$/.test(tag)) {
       flush();
       const level = Math.min(4, Math.max(2, Number(tag[1]))) as 2 | 3 | 4;

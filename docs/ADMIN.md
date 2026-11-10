@@ -174,3 +174,14 @@ For safety, the page always says *"a reset link is on its way"*, even when the e
 - **A red message after saving:** read it. It names the field to fix. Nothing was saved.
 - **"Request failed" or the page does not load:** check your internet connection and reload. If it keeps happening, the backend may be down. Tell Echo.
 - **The live site did not change after a publish:** check that the work's status is **Published**, that the publish shows **Success**, and reload the page with Ctrl+F5.
+
+## Visual editor (v3, TITA-95)
+
+`/admin/` now opens the visual editor (route `#/editor/<page-slug>`); the form pages remain under the account menu until stage 7 retires them. Source: `src/admin/editor/`.
+
+- **Canvas** (`canvas.tsx`): the shared Preact section components rendered with the draft (`build_content_v3(false)`) and the theme CSS into a sandboxed same-origin iframe. Media uses signed Storage URLs.
+- **Selection and panel** (`panel.ts`): click a section or block; the panel form is generated from the zod settings schemas via JSON Schema, plus variant, per-device visibility and media/alt controls. Esc deselects.
+- **Inline text** (`inline.ts`): headings, captions and paragraphs are `contenteditable`; the DOM is read back into the contract's rich-text JSON (bold, italic, link, h2-h4, lists). No HTML is stored or pasted (paste is plain text).
+- **Store** (`store.ts`): one state with undo/redo, debounced autosave (1.2 s) of changed sections and blocks (validated with `sectionDraftSchema` / `blockDraftSchema`; the audit trigger sets `updated_by`), and a notice when another editor changed the same item since load (last write wins).
+- **Publish**: flushes the autosave, calls the `publish` function and follows the run with the same status poll as v2.
+- Adding/moving/deleting sections and blocks, the page manager and the theme editor arrive in stages 4-6.
