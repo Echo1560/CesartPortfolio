@@ -130,6 +130,14 @@ Deno.test({ name: 'track stores a normalised event without IP, UA or cookies', .
   assert(!stored.includes('Firefox'), 'user agent stored');
 }});
 
+Deno.test({ name: 'track stores the page slug for per-page stats', ...opts, async fn() {
+  const path = `/CesartPortfolio/t-${unique()}/`;
+  assertEquals((await track({ v: 1, name: 'page_view', path, page: 'commissions' })).status, 204);
+  assertEquals((await track({ v: 1, name: 'page_view', path, page: '../admin' })).status, 400);
+  const rows = await eventsAt(path);
+  assertEquals(rows.map((r) => r.page_slug), ['commissions']);
+}});
+
 Deno.test({ name: 'track rejects malformed and oversized payloads', ...opts, async fn() {
   const bad = [
     'not json',
@@ -315,6 +323,87 @@ Deno.test({ name: 'publish flow: dispatch, conflict, workflow status reports', .
       assertEquals(back.status, 201);
     }
   });
+}});
+
+// ---------------------------------------------------------------------------
+// publish v3 + version history + restore (PostgREST RPC, docs/V3-CONTRACTS.md §5-6)
+// ---------------------------------------------------------------------------
+
+/** PostgREST call with an editor's (or anyone's) JWT, as the editor UI makes it. */
+async function asUser(token: string, path: string, init: RequestInit = {}) {
+  const res = await fetch(`${API}${path}`, {
+    ...init,
+    headers: { apikey: ANON, authorization: `Bearer ${token}`, 'content-type': 'application/json', ...init.headers },
+  });
+  const text = await res.text();
+  return { status: res.status, json: text ? JSON.parse(text) : null };
+}
+
+Deno.test({ name: 'publish v3: snapshot, version history and restore into the draft', ...opts, async fn(t) {
+  const report = (body: unknown) => post('publish-status', body, undefined, { 'x-publish-token': PUBLISH_TOKEN });
+  const pageId = crypto.randomUUID();
+  const slug = `p-${unique()}`;
+  let versionA = '';
+
+  await t.step('Publish freezes snapshot v3 with the new page; media_paths are library files', async () => {
+    github.calls = [];
+    const home = (await rest('/rest/v1/pages?is_home=eq.true&select=position')).json[0];
+    const created = await asUser(tokens!.cesart, '/rest/v1/pages', {
+      method: 'POST',
+      body: JSON.stringify({ id: pageId, slug, title: 'Commissions', status: 'published', position: home.position + 100 }),
+    });
+    assertEquals(created.status, 201, JSON.stringify(created.json));
+    const r = await post('publish', {}, tokens!.cesart);
+    assertEquals(r.status, 200, JSON.stringify(r.json));
+    versionA = r.json.run.id;
+    assertEquals((await report({ run_id: versionA, status: 'succeeded' })).status, 200);
+
+    const run = (await rest(`/rest/v1/publish_runs?id=eq.${versionA}&select=snapshot,media_paths`)).json[0];
+    assertEquals(run.snapshot.version, 3);
+    assertEquals(run.snapshot.theme.preset, 'classic');
+    assert(run.snapshot.pages.some((p: { slug: string }) => p.slug === slug), 'the new page is in the snapshot');
+    const library = new Set((await rest('/rest/v1/media?select=storage_path')).json.map((m: { storage_path: string }) => m.storage_path));
+    assert(run.media_paths.length > 0 && run.media_paths.every((k: string) => library.has(k)), 'media_paths are library keys');
+  });
+
+  await t.step('editors list versions; non-editors see none', async () => {
+    const list = await asUser(tokens!.echo, '/rest/v1/published_snapshots?select=id,version,schema_version,is_live&order=version.desc&limit=1');
+    assertEquals(list.status, 200);
+    assertEquals(list.json[0].id, versionA);
+    assertEquals(list.json[0].schema_version, 3);
+    assertEquals(list.json[0].is_live, true);
+    assertEquals((await asUser(tokens!.visitor, '/rest/v1/published_snapshots?select=id')).json, []);
+  });
+
+  await t.step('only editors can restore', async () => {
+    const body = JSON.stringify({ p_run_id: versionA });
+    const anon = await fetch(`${API}/rest/v1/rpc/restore_published_snapshot`, { method: 'POST', headers: { apikey: ANON, 'content-type': 'application/json' }, body });
+    await anon.body?.cancel();
+    assert(anon.status === 401 || anon.status === 403, `anon got ${anon.status}`);
+    const visitor = await asUser(tokens!.visitor, '/rest/v1/rpc/restore_published_snapshot', { method: 'POST', body });
+    assertEquals(visitor.status, 403);
+    assertEquals(visitor.json.code, '42501');
+    const unknown = await asUser(tokens!.cesart, '/rest/v1/rpc/restore_published_snapshot', { method: 'POST', body: JSON.stringify({ p_run_id: crypto.randomUUID() }) });
+    assertEquals(unknown.json.code, 'PT404');
+  });
+
+  await t.step('restore brings the version back into the draft without publishing', async () => {
+    assertEquals((await asUser(tokens!.cesart, `/rest/v1/pages?id=eq.${pageId}`, { method: 'PATCH', body: JSON.stringify({ title: 'Renamed', status: 'hidden' }) })).status, 204);
+    const live = (await rest('/rest/v1/rpc/get_published_content', { method: 'POST', body: '{}' })).json;
+    const calls = github.calls.length;
+
+    const r = await asUser(tokens!.echo, '/rest/v1/rpc/restore_published_snapshot', { method: 'POST', body: JSON.stringify({ p_run_id: versionA }) });
+    assertEquals(r.status, 204, JSON.stringify(r.json));
+    const page = (await rest(`/rest/v1/pages?id=eq.${pageId}&select=title,status,slug`)).json[0];
+    assertEquals(page, { title: 'Commissions', status: 'published', slug });
+    const log = (await rest(`/rest/v1/activity_log?action=eq.restore&row_id=eq.${versionA}&select=actor_id`)).json;
+    assertEquals(log.at(-1)?.actor_id, IDS.echo);
+    assertEquals((await rest('/rest/v1/rpc/get_published_content', { method: 'POST', body: '{}' })).json, live);
+    assertEquals(github.calls.length, calls, 'restore does not dispatch a build');
+  });
+
+  // Leave the database as the other tests expect it.
+  assertEquals((await rest(`/rest/v1/pages?id=eq.${pageId}`, { method: 'DELETE' })).status, 204);
 }});
 
 // ---------------------------------------------------------------------------

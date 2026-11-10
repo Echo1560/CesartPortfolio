@@ -3,8 +3,8 @@
 The shared contracts for the v3 visual editor (TITA-90). Every v3 child issue builds against this file. If you need to change a contract, change it here in your PR, together with `src/lib/schema-v3.ts` and a new migration, and note it on TITA-90.
 
 - Zod contract: [`src/lib/schema-v3.ts`](../src/lib/schema-v3.ts). v2 shapes (`Site`, `Work`, `Media`) stay in `schema.ts` and are reused.
-- Migrations: `supabase/migrations/20261110000100_v3_content_model.sql`, `…0200_v3_publish.sql`, `…0300_v3_migrate_v2.sql`. Rollbacks: `supabase/rollbacks/`.
-- Tests: `supabase/tests/database/06_v3_structure`, `07_v3_rls`, `08_v3_migration` (pgTAP) and `tests/unit/schema-v3.test.ts`.
+- Migrations: `supabase/migrations/20261110000100_v3_content_model.sql`, `…0200_v3_publish.sql`, `…0300_v3_migrate_v2.sql`, `…0400_v3_publish_followups.sql`. Rollbacks: `supabase/rollbacks/`.
+- Tests: `supabase/tests/database/06_v3_structure`, `07_v3_rls`, `08_v3_migration`, `09_v3_restore` (pgTAP), `tests/unit/schema-v3.test.ts`, `tests/unit/loader-v3.test.ts` and the publish/restore steps in `supabase/functions/tests/functions.test.ts`.
 - Fixture: `tests/fixtures/snapshot-v3.json` is the snapshot the seeded local database publishes. Use it for loader, renderer and e2e tests.
 
 Everything in [`V2-CONTRACTS.md`](V2-CONTRACTS.md) still holds unless this file says otherwise: auth, editors, `is_editor()`, the activity log, the media library and bucket, `publish_runs`, Edge Functions, events and stats.
@@ -184,7 +184,7 @@ Rich text is **JSON, never HTML or Markdown**, in a ProseMirror/Tiptap-compatibl
 - Block nodes: `paragraph {content?: InlineText}`, `heading {attrs: {level: 2-4}, content?}`, `bulletList` / `orderedList {content: listItem[]}`, `listItem {content: paragraph[]}`. `h1` is not available in rich text; a page's `h1` is the hero heading or a `heading` block with level 1.
 - Inline nodes: `text {text, marks?}`, `hardBreak`.
 - Marks: `bold`, `italic`, `link {attrs: {href}}`. Nothing else (no underline, colour, class or style).
-- **Safe href**: `http(s)://…`, `mailto:…`, `tel:…`, a site path `/…` (not `//`), or `#anchor`. Anything else (`javascript:`, `data:`, protocol-relative) fails validation. The same rule applies to `Link.url`.
+- **Safe href** (`SAFE_HREF` in schema-v3.ts, `public.is_safe_href()` in SQL; a unit test checks they agree): `http(s)://…`, `mailto:…`, `tel:…`, a site path `/…` that does not start with `//` or `/\` and has no backslash, or `#anchor`. Anything else (`javascript:`, `data:`, protocol-relative) fails validation. The same rule applies to `Link.url` and to links in the v2 Markdown that `md_to_richtext()` converts.
 - Schemas are `.strict()`: unknown keys or node types fail.
 
 **Renderer rules (stage 2, security review):** build elements from the nodes, escape every `text`, never use `set:html`/`dangerouslySetInnerHTML` for rich text, re-check every href against the safe-href rule at render time, and add `rel="noopener noreferrer"` to external links that open in a new tab. Site paths get the `/CesartPortfolio` base.
@@ -247,7 +247,7 @@ Palette = { background, surface, text, muted, accent, accentContrast, border, fo
     {
       "id": "uuid", "slug": "home", "title": "Home", "status": "published", "isHome": true,
       "seo": { "title"?, "description"?, "ogImage"?: "bucket/key.jpg", "ogImageId"?: "uuid" },
-      "sections": [                                  // in order; sections hidden on every device are left out
+      "sections": [                                  // in order, including sections hidden on every device
         {
           "id": "uuid", "type": "hero", "variant": "default",
           "settings": { ... }, "content": { ... },  // §3, every MediaRef resolved to a snapshot Media
@@ -265,9 +265,9 @@ Palette = { background, surface, text, muted, accent, accentContrast, border, fo
 
 - Validate with `snapshotV3Schema` (it also checks one home page and unique slugs).
 - **Transition.** `site` is a superset of the v2 `Site`, so the v2 build keeps working on a v3 snapshot until the stage-2 loader switches to v3 (`npm run test:parity` proves it). When stage 7 retires the v2 forms, a migration drops the v2-only fields from `site` and this section changes.
-- **Media.** Every `MediaRef` is resolved: `src`/`poster` are bucket keys, `alt` is the ref's or the library default, `width`/`height` come from the ref or the library row. Publish fails with `PT422` if a file is missing, has no alt text or no dimensions, or a video has no poster. `snapshot_media_paths()` now also collects every `ogImage`, so page social images are readable by the build.
+- **Media.** Every `MediaRef` is resolved: `src`/`poster` are bucket keys, `alt` is the ref's or the library default, `width`/`height` come from the ref or the library row. Publish fails with `PT422` if a file is missing, has no alt text or no dimensions, or a video has no poster. `snapshot_media_paths()` collects every `src`, `poster` and `ogImage` of what the build renders (`snapshot_strip_hidden()`), keeping only keys that are files in `public.media`; only those become readable by anon.
 - **References the database does not check.** A nav or button `Link` to a page that is not in the snapshot, and `workIds`, `categoryIds` or `Link.workId` that are not in `works`, are **skipped by the renderer** (never a build error). The editor should warn about them.
-- **Visibility.** A section or block hidden on some devices is in the snapshot with its `visibility`; the renderer hides it with CSS classes per breakpoint (no JS).
+- **Visibility.** Every section and block is in the snapshot with its `visibility`, even when it is hidden on every device, so restoring a version brings it back. The build drops the ones hidden everywhere (`withoutHidden()` in `validate-v3.ts`, before the media check) and hides the rest per breakpoint with CSS classes (no JS).
 - **Preview.** `build_content_v3(false)` (editors) returns the same shape with every page (any status) and every non-archived work.
 
 ## 6. RPCs (PostgREST `POST /rest/v1/rpc/<name>`)
@@ -281,12 +281,14 @@ Palette = { background, surface, text, muted, accent, accentContrast, border, fo
 | `set_home_page(p_page_id uuid)` | editor (RLS) | makes the page the home page (and published), unsetting the old one. Errors: `42501`, `PT404`. |
 | `section_block_columns(type, settings)` | editor | how many block columns a section offers (1 for text, `settings.columns` for columns, else 0) |
 | `published_snapshots` (view, `GET /rest/v1/published_snapshots`) | editor | version history; select without `snapshot` for the list, then fetch one row's `snapshot` to preview it |
+| `stats_top_pages(from, to, limit = 10)` | editor | `page_slug, title, page_views, visitors, contact_clicks` per v3 page, most viewed first (bots excluded). Errors as the other `stats_*` (`42501`, `PT422`). |
 
 **Restore semantics** (decision recorded on TITA-91; restoring into the draft, as TITA-96 recommends):
 
 - The theme, nav and footer become the version's.
 - Every page in the version comes back with its id, slug, title, SEO and sections/blocks (same ids), as `published`, in the version's order.
 - Pages that are `published` now but are not in the version become `hidden`. Nothing is deleted.
+- Blocks of the version that were moved to another section since are moved back.
 - `draft`/`hidden` pages that are not in the version are kept after the version's pages. If one has a slug the version needs, it is renamed `<slug>-<6 hex>`.
 - Works, categories, socials, the v2 tables and the media library are not touched.
 - The editor then reviews and clicks Publish as usual.
@@ -328,7 +330,24 @@ Storage is unchanged: drafts stay private, and only bucket keys in the live snap
 - **Stage 2, loader and publish (Backend Dev).** Read snapshot v3 with `snapshotV3Schema`; download the media in `publish_runs.media_paths`; local/CI source from a v3 JSON fixture; `publish` keeps calling `create_publish_run()`; version history = `published_snapshots`; restore = `restore_published_snapshot()`; `db:import` should call `migrate_v2_to_v3()` (service role) after importing v2 content into an empty v3 model.
 - **Stages 3-6, editor (Frontend Dev).** Write rows directly through RLS like v2, validating with `sectionDraftSchema`, `blockDraftSchema`, `pageDraftSchema`, `siteNavSchema`, `siteFooterSchema` and `themeTokensSchema` first. Reorders: upsert positions in one request (the unique positions are deferred). Moving the home flag: `set_home_page(page_id)` (two updates would be two transactions over PostgREST, and the site must always have exactly one home).
 
-## 10. Local development and tests
+## 10. Build, import and stats (TITA-93)
+
+**Build-time loader.** `npm run build` runs `content:prepare` first:
+
+| `CONTENT_SOURCE` | What happens |
+|---|---|
+| `local` (default, CI) | validates `content/site.json`, `content/works.json`, `content/snapshot-v3.json` and their files in `content/media/` |
+| `supabase` | fetches `get_published_content()` with the anon key, fails unless it is `version: 3`, validates its shape, downloads every file it references (works, section and block media, background images, videos and posters, page and site social images) into `content/media/`, validates again with the files, and writes `generated/content.json` |
+
+Both then generate WebM/MP4/poster variants for every animated GIF/WebP, including section and block media (`snapshotAnimatedKeys()`). Astro reads the snapshot through `getSnapshot()` in `content.ts` (`validateSnapshotV3()`: zod shape, duplicate ids, every media file present). It never calls Supabase itself. Errors name the path, e.g. `snapshot → pages[0].sections[2].variant: …`.
+
+**`npm run db:import`.** As in V2-CONTRACTS §8, then `migrate_v2_to_v3()` converts the imported v2 draft into the theme and the home page. It only does that while the project has no pages; after that the v3 draft belongs to the editor and the import leaves it alone. `--publish` validates `build_content_v3(true)` with `validateSnapshotV3()` and stores it as a `succeeded` run.
+
+**`npm run test:parity`.** Builds from the local fixture and from the seeded database (the v2 seed converted by `migrate_v2_to_v3()`), checks that every v2 page (home, 404, each work) and the v2 home sections are built, and compares every HTML file. Database ids (uuids, and `s-<8 hex>-title` heading ids) are replaced by their order of first appearance before comparing, because a fresh seed never has the fixture's ids.
+
+**Per-page stats.** `track()` adds `page` (the `<body data-page-slug>` of v3 pages; absent on work pages and the 404) to every beacon. The `track` function accepts it as kebab-case ≤ 100 chars (`400` otherwise) and stores it in `events.page_slug` (`record_event(..., p_page_slug)`). The Stats view shows a **Top pages** card from `stats_top_pages()`.
+
+## 11. Local development and tests
 
 Same commands as V2-CONTRACTS §9. `npm run db:reset` applies the v3 migrations and the seed (which converts the v2 seed rows and publishes a v3 snapshot). `npm run db:seed:generate` regenerates `seed.sql` and `01_seed_matches_content.test.sql`; the snapshot's v2 part must still equal `content/*.json`.
 
