@@ -2,12 +2,15 @@
  * Runs before `astro build` (`npm run build`). Gets the content and its media
  * ready on disk, then generates the video variants of animated media.
  *
- *   CONTENT_SOURCE=local     validate content/*.json + content/media/ (v1)
- *   CONTENT_SOURCE=supabase  fetch the live snapshot with the anon key, download
- *                            every referenced Storage object into content/media/,
+ *   CONTENT_SOURCE=local     validate content/*.json, content/snapshot-v3.json
+ *                            and content/media/
+ *   CONTENT_SOURCE=supabase  fetch the live snapshot (v3) with the anon key,
+ *                            download every Storage object it references (works,
+ *                            section/block media, background images, videos,
+ *                            posters, social images) into content/media/,
  *                            validate, and write the snapshot to
  *                            generated/content.json for `astro build`
- *                            (docs/V2-CONTRACTS.md §4 and §8)
+ *                            (docs/V2-CONTRACTS.md §4 and §8, V3-CONTRACTS.md §5)
  *
  * Media must be on disk before Astro starts: `media.ts` finds files with
  * `import.meta.glob`, which is resolved when the bundle is built. Public pages
@@ -36,7 +39,9 @@ import {
 } from '../src/lib/content-source.ts';
 import { hasVariants, VARIANTS_DIR } from '../src/lib/media-variants.ts';
 import type { Media } from '../src/lib/schema.ts';
+import type { SnapshotV3 } from '../src/lib/schema-v3.ts';
 import { ContentError, validateContent, type ValidContent } from '../src/lib/validate.ts';
+import { snapshotAnimatedKeys, snapshotMediaKeys, validateSnapshotV3 } from '../src/lib/validate-v3.ts';
 import { findFfmpeg, generateVariants } from './lib/variants.ts';
 
 const root = process.cwd();
@@ -63,13 +68,26 @@ function readLocal(): ContentInput {
   return { site: read('site.json'), works: read('works.json') };
 }
 
-async function loadContent(): Promise<ValidContent> {
+interface Loaded {
+  content: ValidContent;
+  snapshot: SnapshotV3;
+}
+
+/** The v3 part of a published snapshot, as `{version, site, theme, pages, works}`. */
+function v3Input(input: ContentInput): unknown {
+  if (input.version !== 3) {
+    throw new ContentSourceError('The published snapshot is not version 3 (no pages or theme). Publish again from the editor, or run the v3 migrations first.');
+  }
+  return { version: input.version, site: input.site, theme: input.theme, pages: input.pages, works: input.works };
+}
+
+async function loadContent(): Promise<Loaded> {
   // Never leave a previous snapshot behind: a failed or local run must not let astro build render stale content.
   await removeSnapshot(root);
   const source = contentSource();
   if (source === 'local') {
     const { site, works } = readLocal();
-    return validateContent(site, works, mediaExists);
+    return { content: validateContent(site, works, mediaExists), snapshot: validateSnapshotV3(readLocalSnapshot(), mediaExists) };
   }
 
   const config = supabaseConfig();
@@ -77,25 +95,37 @@ async function loadContent(): Promise<ValidContent> {
   const input = await fetchPublishedContent(config);
   // Shape first (files not checked yet), so bad content fails before any download.
   const shaped = validateContent(input.site, input.works, () => true);
-  const keys = mediaKeys(shaped);
+  const shapedV3 = validateSnapshotV3(v3Input(input), () => true);
+  const keys = [...new Set([...mediaKeys(shaped), ...snapshotMediaKeys(shapedV3)])].sort();
   const { written, unchanged } = await downloadMedia(config, keys, mediaDir);
   console.log(`→ media: ${keys.length} files from Storage (${written.length} written, ${unchanged.length} unchanged)`);
-  const valid = validateContent(input.site, input.works, mediaExists);
+  const content = validateContent(input.site, input.works, mediaExists);
+  const snapshot = validateSnapshotV3(v3Input(input), mediaExists);
   await writeSnapshot(root, config, input);
-  return valid;
+  return { content, snapshot };
 }
 
-function animatedKeys({ site, works }: ValidContent): string[] {
-  const all: (Media | undefined)[] = [site.hero.media, site.about.portrait, ...works.flatMap((w) => [w.media, ...(w.gallery ?? [])])];
-  return [...new Set(all.filter((m): m is Media => m !== undefined && hasVariants(m)).map((m) => m.src))].sort();
+function readLocalSnapshot(): unknown {
+  try {
+    return JSON.parse(readFileSync(join(contentDir, 'snapshot-v3.json'), 'utf8')) as unknown;
+  } catch (error) {
+    throw new ContentSourceError(`content/snapshot-v3.json could not be read as JSON: ${error instanceof Error ? error.message : String(error)}`);
+  }
 }
 
-async function buildVariants(content: ValidContent): Promise<void> {
+/** Source keys of every animated GIF/WebP: v2 site media, works, and the media of v3 sections and blocks. */
+function animatedKeys({ site, works }: ValidContent, snapshot: SnapshotV3): string[] {
+  const v2: (Media | undefined)[] = [site.hero.media, site.about.portrait, ...works.flatMap((w) => [w.media, ...(w.gallery ?? [])])];
+  const keys = v2.filter((m): m is Media => m !== undefined && hasVariants(m)).map((m) => m.src);
+  return [...new Set([...keys, ...snapshotAnimatedKeys(snapshot)])].sort();
+}
+
+async function buildVariants({ content, snapshot }: Loaded): Promise<void> {
   // Start clean so variants of removed media never ship. Regenerating from the cache is a file copy.
   await rm(variantsDir, { recursive: true, force: true });
   const mode = (process.env.MEDIA_VARIANTS ?? '').trim() || (process.env.CI ? 'required' : 'auto');
   if (!['auto', 'required', 'off'].includes(mode)) throw new ContentSourceError(`MEDIA_VARIANTS must be auto, required or off, got "${mode}".`);
-  const keys = animatedKeys(content);
+  const keys = animatedKeys(content, snapshot);
   if (mode === 'off' || keys.length === 0) {
     console.log(`→ variants: ${mode === 'off' ? 'skipped (MEDIA_VARIANTS=off)' : 'no animated GIF/WebP media'}`);
     return;
@@ -116,12 +146,14 @@ async function buildVariants(content: ValidContent): Promise<void> {
 }
 
 try {
-  const content = await loadContent();
-  await buildVariants(content);
+  const loaded = await loadContent();
+  await buildVariants(loaded);
+  const { content, snapshot } = loaded;
   const placeholders = content.works.filter((w) => w.placeholder).length;
   console.log(
     `✓ content is valid: ${content.works.length} works, ${content.site.categories.length} categories` +
-      (placeholders ? ` (${placeholders} marked placeholder)` : ''),
+      (placeholders ? ` (${placeholders} marked placeholder)` : '') +
+      `, ${snapshot.pages.length} page${snapshot.pages.length === 1 ? '' : 's'}`,
   );
 } catch (error) {
   if (error instanceof ContentError || error instanceof ContentSourceError || (error instanceof Error && error.name === 'VariantError')) {

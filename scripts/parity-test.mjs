@@ -9,11 +9,13 @@
  * Steps:
  *   1. `npm run build` with local content     → .parity/local
  *   2. `npm run build` with the Supabase snapshot → .parity/supabase
- *   3. compare both trees: same files, same HTML. Hashes in /_astro/ asset
+ *   3. v2 → v3: the Supabase build (v2 seed converted by migrate_v2_to_v3())
+ *      still has every v2 page (home, 404, each work) and the v2 home sections.
+ *   4. compare both trees: same files, same HTML. Hashes in /_astro/ asset
  *      names are ignored, so only content and structure count.
- *   4. a build pointed at a closed port must exit non-zero and name the cause,
+ *   5. a build pointed at a closed port must exit non-zero and name the cause,
  *      and `astro build` must then refuse to run without a prepared snapshot.
- *   5. the Supabase build must not have changed any tracked file in content/.
+ *   6. the Supabase build must not have changed any tracked file in content/.
  */
 import { execSync, spawnSync } from 'node:child_process';
 import { cpSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs';
@@ -101,6 +103,16 @@ check(
   onlyLocal.length === 0 && onlySupabase.length === 0,
   `  only local: ${onlyLocal.join(', ') || '-'}\n  only supabase: ${onlySupabase.join(', ') || '-'}`,
 );
+
+// v2 content → v3 migration → build: every page the v2 site had is still built
+// (home, 404, one page per work), and the migrated home page has the v2 sections.
+const v2Works = JSON.parse(readFileSync(join(root, 'content', 'works.json'), 'utf8'));
+const v2Routes = ['index.html', '404.html', ...v2Works.map((w) => `work/${w.slug}/index.html`)];
+const missingRoutes = v2Routes.filter((r) => !supabaseFiles.includes(r));
+check(`the migrated content builds all ${v2Routes.length} v2 pages`, missingRoutes.length === 0, `  missing: ${missingRoutes.join(', ')}`);
+const home = readFileSync(join(out, 'supabase', 'index.html'), 'utf8');
+const v2Anchors = ['featured', 'work', 'about', 'contact'].filter((id) => !home.includes(`id="${id}"`));
+check('the migrated home page has the v2 sections (featured, work, about, contact)', v2Anchors.length === 0, `  missing: ${v2Anchors.join(', ')}`);
 
 // Same HTML.
 const pages = files(join(out, 'local')).filter((f) => f.endsWith('.html'));

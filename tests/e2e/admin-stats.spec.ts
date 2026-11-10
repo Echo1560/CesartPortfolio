@@ -7,13 +7,13 @@ const ev = (d: number, name: string, visitor: string, extra: Partial<StatEvent> 
 test('stats shows totals, referrers and devices computed from seeded events', async ({ page }) => {
   const backend = newBackend();
   backend.events = [
-    ev(1, 'page_view', 'a', { referrer_host: 'instagram.com' }),
-    ev(1, 'page_view', 'b', { referrer_host: 'instagram.com', device: 'mobile' }),
-    ev(2, 'page_view', 'a', { referrer_host: 'twitter.com' }),
+    ev(1, 'page_view', 'a', { referrer_host: 'instagram.com', page: 'home' }),
+    ev(1, 'page_view', 'b', { referrer_host: 'instagram.com', device: 'mobile', page: 'home' }),
+    ev(2, 'page_view', 'a', { referrer_host: 'twitter.com', page: 'commissions' }),
     ev(2, 'work_open', 'a', { slug: 'dragon' }),
     ev(2, 'work_open', 'b', { slug: 'dragon' }),
     ev(3, 'video_play', 'b', { slug: 'dragon' }),
-    ev(3, 'contact_click', 'b'),
+    ev(3, 'contact_click', 'b', { page: 'commissions' }),
   ];
   await mountAdmin(page, backend, '#/stats');
 
@@ -26,6 +26,8 @@ test('stats shows totals, referrers and devices computed from seeded events', as
 
   await expect(page.getByRole('row', { name: /instagram\.com/ })).toContainText('2');
   await expect(page.getByRole('row', { name: /twitter\.com/ })).toContainText('1');
+  await expect(page.getByRole('row', { name: /Page home/ })).toContainText('2 views · 2 visitors · 0 contact clicks');
+  await expect(page.getByRole('row', { name: /Page commissions/ })).toContainText('1 views · 1 visitors · 1 contact clicks');
   await expect(page.getByRole('row', { name: /Work dragon/ })).toContainText('2 opens · 1 plays');
   await expect(page.getByRole('row', { name: /mobile/ })).toContainText('1');
 });

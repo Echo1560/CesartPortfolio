@@ -34,7 +34,17 @@ Deno.test('parseEvent normalises a work_open beacon', () => {
     p_referrer_host: 'www.instagram.com',
     p_device: 'desktop',
     p_props: { source: 'lightbox' },
+    p_page_slug: null,
   });
+});
+
+Deno.test('parseEvent keeps the page slug of a v3 page', () => {
+  const e = parseEvent(JSON.stringify({ v: 1, name: 'page_view', path: '/CesartPortfolio/commissions/', page: 'commissions' }), FIREFOX);
+  assertEquals(e.p_page_slug, 'commissions');
+  assertEquals(parseEvent(JSON.stringify({ v: 1, name: 'contact_click', path: '/', page: null }), FIREFOX).p_page_slug, null);
+  badRequest(() => parseEvent(JSON.stringify({ v: 1, name: 'page_view', path: '/', page: '../admin' }), FIREFOX));
+  badRequest(() => parseEvent(JSON.stringify({ v: 1, name: 'page_view', path: '/', page: 'a'.repeat(101) }), FIREFOX));
+  badRequest(() => parseEvent(JSON.stringify({ v: 1, name: 'page_view', path: '/', page: 7 }), FIREFOX));
 });
 
 Deno.test('parseEvent rejects malformed input', () => {

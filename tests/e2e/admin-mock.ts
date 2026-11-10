@@ -10,7 +10,7 @@ const b64 = (o: unknown) => Buffer.from(JSON.stringify(o)).toString('base64url')
 const OWNER_ID = '00000000-0000-4000-8000-000000000001';
 
 export interface Editor { user_id: string; display_name: string; email: string; role: 'owner' | 'editor'; disabled_at: string | null; created_at: string }
-export interface StatEvent { day: string; name: string; visitor: string; referrer_host?: string; device: string; slug?: string }
+export interface StatEvent { day: string; name: string; visitor: string; referrer_host?: string; device: string; slug?: string; page?: string }
 
 export interface Backend {
   editors: Editor[];
@@ -102,6 +102,11 @@ function stats(name: string, a: { p_from: string; p_to: string; p_limit?: number
     case 'stats_top_works': {
       const slugs = [...new Set(inRange.filter((e) => e.slug).map((e) => e.slug!))];
       return slugs.map((s) => ({ work_slug: s, title: `Work ${s}`, opens: inRange.filter((e) => e.slug === s && e.name === 'work_open').length, video_plays: inRange.filter((e) => e.slug === s && e.name === 'video_play').length })).sort((x, y) => y.opens - x.opens);
+    }
+    case 'stats_top_pages': {
+      const slugs = [...new Set(inRange.filter((e) => e.page).map((e) => e.page!))];
+      const of = (s: string, name: string) => inRange.filter((e) => e.page === s && e.name === name);
+      return slugs.map((s) => ({ page_slug: s, title: `Page ${s}`, page_views: of(s, 'page_view').length, visitors: uniq(of(s, 'page_view')), contact_clicks: of(s, 'contact_click').length })).sort((x, y) => y.page_views - x.page_views);
     }
     case 'stats_referrers':
       return group(views, (e) => e.referrer_host, 'referrer_host');
