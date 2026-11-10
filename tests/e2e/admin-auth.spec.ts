@@ -51,7 +51,7 @@ test('a valid login opens the dashboard', async ({ page }) => {
   await page.getByLabel('Email').fill('cesart@example.com');
   await page.getByLabel('Password').fill('correct-horse-battery');
   await page.getByRole('button', { name: 'Log in' }).click();
-  await expect(page.getByRole('navigation', { name: 'Dashboard sections' })).toBeVisible();
+  await expect(page.getByLabel('Password')).toHaveCount(0);
 });
 
 test('a signed-in user who is not an active editor is sent back to the login form', async ({ page }) => {
@@ -77,7 +77,7 @@ test('a non-editor is told why they were refused', async ({ page }) => {
 test('logging out returns to the login form', async ({ page }) => {
   const backend = newBackend();
   backend.tables = draftTables();
-  await mountAdmin(page, backend);
+  await mountAdmin(page, backend, '#/content');
   await page.getByRole('button', { name: 'Log out' }).click();
   await expect(page.getByRole('heading', { name: 'Dashboard login' })).toBeVisible();
 });
@@ -85,9 +85,9 @@ test('logging out returns to the login form', async ({ page }) => {
 test('the dashboard exposes every section in its navigation', async ({ page }) => {
   const backend = newBackend();
   backend.tables = draftTables();
-  await mountAdmin(page, backend);
+  await mountAdmin(page, backend, '#/content');
   const nav = page.getByRole('navigation', { name: 'Dashboard sections' });
-  for (const name of ['Content', 'Works', 'Layout', 'Media library', 'Preview', 'Publish', 'Stats', 'Accounts', 'Activity']) {
+  for (const name of ['Visual editor', 'Content', 'Works', 'Layout', 'Media library', 'Preview', 'Publish', 'Stats', 'Accounts', 'Activity']) {
     await expect(nav.getByRole('link', { name })).toBeVisible();
   }
 });

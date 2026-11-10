@@ -1,5 +1,5 @@
 /** Dashboard entry: auth gate, shell and hash router. */
-import { clear, h, toast } from './dom';
+import { clear, h } from './dom';
 import { loadDraft, type Draft } from './data';
 import { renderLogin, renderSetPassword } from './auth';
 import { arrivedViaEmailLink, configured, sb } from './supabase';
@@ -12,6 +12,7 @@ import { renderPublish } from './views/publish';
 import { renderStats } from './views/stats';
 import { renderAccounts } from './views/accounts';
 import { renderActivity } from './views/activity';
+import { disposeEditor, renderEditor } from './editor/editor';
 
 export interface ViewContext {
   draft: Draft;
@@ -19,7 +20,10 @@ export interface ViewContext {
   refresh(): Promise<void>;
 }
 
+const EDITOR = 'editor';
+
 const ROUTES: [id: string, label: string, render: (el: HTMLElement, ctx: ViewContext) => void | Promise<void>][] = [
+  [EDITOR, 'Visual editor', () => undefined],
   ['content', 'Content', renderContent],
   ['works', 'Works', renderWorks],
   ['layout', 'Layout', renderLayout],
@@ -90,19 +94,12 @@ async function renderShell(email: string): Promise<void> {
   const main = h('main', { id: 'admin-main', tabindex: '-1' });
   const nav = h('nav', { 'aria-label': 'Dashboard sections' });
   const logout = h('button', { type: 'button', class: 'btn btn--ghost', onclick: () => void sb().auth.signOut() }, 'Log out');
-  root.append(
-    h('header', { class: 'bar' }, h('strong', {}, 'Cesart · dashboard'), nav, h('span', { class: 'bar__user' }, email), logout),
-    h('p', { class: 'banner' }, 'Everything you save here is a draft. It is not public until it is published.'),
-    main,
-  );
+  const bar = h('header', { class: 'bar' }, h('strong', {}, 'Cesart · dashboard'), nav, h('span', { class: 'bar__user' }, email), logout);
+  const banner = h('p', { class: 'banner' }, 'Everything you save here is a draft. It is not public until it is published.');
+  root.append(bar, banner, main);
 
-  let draft = await loadDraft().catch((e: Error) => {
-    toast(e.message, 'error');
-    return null;
-  });
-  if (!draft) return;
-
-  const current = () => ROUTES.find(([id]) => id === location.hash.replace(/^#\/?/, '').split('/')[0]) ?? ROUTES[0]!;
+  // The classic forms load their draft on demand; the visual editor loads its own.
+  let draft: Draft | null = null;
   const ctx: ViewContext = {
     get draft() {
       return draft!;
@@ -112,12 +109,24 @@ async function renderShell(email: string): Promise<void> {
       await show();
     },
   };
+  const hashParts = () => location.hash.replace(/^#\/?/, '').split('/');
+  const current = () => ROUTES.find(([id]) => id === hashParts()[0]) ?? ROUTES[0]!;
   const show = async () => {
     const [id, , render] = current();
+    const editing = id === EDITOR;
+    bar.hidden = editing;
+    banner.hidden = editing;
+    document.body.classList.toggle('admin-editor', editing);
     for (const a of nav.querySelectorAll('a')) a.toggleAttribute('aria-current', a.dataset.route === id);
     for (const a of nav.querySelectorAll('a[aria-current]')) a.setAttribute('aria-current', 'page');
+    disposeEditor();
     clear(main);
     try {
+      if (editing) {
+        await renderEditor(main, { slug: hashParts()[1], email, onLogout: () => void sb().auth.signOut() });
+        return;
+      }
+      draft = await loadDraft(); // fresh: the visual editor may have changed it
       await render(main, ctx);
     } catch (e) {
       main.appendChild(h('p', { class: 'field__error', role: 'alert' }, (e as Error).message));

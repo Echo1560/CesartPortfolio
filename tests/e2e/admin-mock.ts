@@ -27,6 +27,8 @@ export interface Backend {
   writes: { table: string; method: string; query: Record<string, string>; body: any }[];
   /** Every read of a table in `tables`: the query string parameters. */
   reads: { table: string; query: Record<string, string> }[];
+  /** RPC name -> answer, for functions other than is_editor/is_owner/stats (e.g. build_content_v3). */
+  rpc: Record<string, (args: any) => unknown>;
   /** Answer of the `is_editor` RPC. */
   isEditor: boolean;
   /** Password login: returns an error message to refuse, or null to accept. */
@@ -45,6 +47,7 @@ export function newBackend(): Backend {
     tables: {},
     writes: [],
     reads: [],
+    rpc: {},
     isEditor: true,
     login: () => 'Invalid login credentials',
     auth: [],
@@ -163,6 +166,7 @@ export async function mountAdmin(page: Page, backend: Backend, hash = '', opts: 
     const rpc = url.pathname.match(/^\/rest\/v1\/rpc\/(\w+)$/);
     if (rpc) {
       const name = rpc[1]!;
+      if (backend.rpc[name]) return json(route, backend.rpc[name]!(req.postDataJSON()));
       if (name === 'is_editor') return json(route, backend.isEditor);
       if (name === 'is_owner') return json(route, true);
       return json(route, stats(name, req.postDataJSON(), backend.events));
