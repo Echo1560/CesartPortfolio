@@ -385,7 +385,7 @@ daily_salt   = HMAC-SHA256(EVENTS_HASH_SECRET, "YYYY-MM-DD")   // UTC date
 visitor_hash = hex(HMAC-SHA256(daily_salt, ip + "|" + user_agent))
 ```
 
-The salt is derived per day and never stored, so a hash cannot be reversed or linked across days. No raw IP, no UA, no cookies and no client storage. Events older than 400 days are deleted by `purge_old_events()`, which the keep-alive workflow calls through a service-role function.
+The salt is derived per day and never stored, so a hash cannot be reversed or linked across days. No raw IP, no UA, no cookies and no client storage. Events older than 400 days are deleted by `purge_old_events()` (service role only). Nothing schedules it yet: the keep-alive workflow only reads with the anon key. Run it from the SQL editor when needed.
 
 ## 8. Data layer (`src/lib/content.ts`)
 
