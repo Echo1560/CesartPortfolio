@@ -341,4 +341,13 @@ test('"+" inserts at the right place and focus returns to the in-canvas button w
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
   await expect(plus).toBeFocused();
+  // The section is placed before "gallery" in page.sections, past the undrawn "featured" one.
+  const before = types(backend);
+  await page.keyboard.press('Enter');
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: /Call to action/ }).click();
+  await expect(canvas(page).locator('main > [data-section-type="cta"]')).toHaveCount(2);
+  await settled(page);
+  const at = before.indexOf('gallery');
+  expect(types(backend)).toEqual([...before.slice(0, at), 'cta', ...before.slice(at)]);
 });
