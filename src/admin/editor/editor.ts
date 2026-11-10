@@ -23,6 +23,7 @@ const DEVICES: [Device, string][] = [
 ];
 const POLL_MS = 5000;
 const MENU: [href: string, label: string][] = [
+  ['#/pages', 'Pages and navigation'],
   ['#/media', 'Media library'],
   ['#/stats', 'Stats'],
   ['#/activity', 'Activity'],

@@ -5,6 +5,7 @@ import { renderLogin, renderSetPassword } from './auth';
 import { arrivedViaEmailLink, configured, sb } from './supabase';
 import { renderContent } from './views/content';
 import { renderWorks } from './views/works';
+import { renderPages } from './views/pages';
 import { renderLayout } from './views/layout';
 import { renderMedia } from './views/media';
 import { renderPreview } from './views/preview';
@@ -24,6 +25,7 @@ const EDITOR = 'editor';
 
 const ROUTES: [id: string, label: string, render: (el: HTMLElement, ctx: ViewContext) => void | Promise<void>][] = [
   [EDITOR, 'Visual editor', () => undefined],
+  ['pages', 'Pages', renderPages],
   ['content', 'Content', renderContent],
   ['works', 'Works', renderWorks],
   ['layout', 'Layout', renderLayout],
