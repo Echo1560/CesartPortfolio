@@ -4,8 +4,8 @@
  * one prop and no `client:*` directive: the output is static HTML.
  */
 import type { ComponentChildren, VNode } from 'preact';
-import { visibleSections, withBase } from '../../lib/render-model';
-import type { SnapshotPage, SnapshotV3 } from '../../lib/schema-v3';
+import { safeSocials, visibleSections, withBase } from '../../lib/render-model';
+import type { Link, SnapshotPage, SnapshotV3 } from '../../lib/schema-v3';
 import type { Category, Work } from '../../lib/schema';
 import { ButtonLink } from './ButtonLink';
 import { Inline } from './RichText';
@@ -118,19 +118,21 @@ function Header(): VNode {
     });
     return [{ ...item, href: target.href, newTab: target.newTab, children }];
   });
-  const current = (href: string) => (page && href === withBase(base, page.isHome ? '' : `${page.slug}/`) ? ('page' as const) : undefined);
+  // A link to the current page resolves to a same-page anchor, so compare the link, not the href.
+  const current = (link: Link) => (page && link.kind === 'page' && link.pageId === page.id && !link.anchor ? ('page' as const) : undefined);
+  const newTabAttrs = (newTab: boolean) => (newTab ? { target: '_blank', rel: 'noopener noreferrer' } : {});
   const list = (
     <ul>
       {items.map((item) => (
         <li key={item.id} class={item.children.length ? 'has-children' : undefined}>
-          <a href={item.href} aria-current={current(item.href)} {...(item.newTab ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>
+          <a href={item.href} aria-current={current(item.link)} {...newTabAttrs(item.newTab)}>
             {item.label}
           </a>
           {item.children.length > 0 && (
             <ul class="site-header__sub">
               {item.children.map((c) => (
                 <li key={c.id}>
-                  <a href={c.href} aria-current={current(c.href)}>
+                  <a href={c.href} aria-current={current(c.link)} {...newTabAttrs(c.newTab)}>
                     {c.label}
                   </a>
                 </li>
@@ -171,13 +173,14 @@ export function HeaderRoot({ ctx }: { ctx: RenderContext }): VNode {
 }
 
 function Footer({ year }: { year: number }): VNode {
-  const { site } = useRender();
+  const { site, base } = useRender();
   const resolve = useLink();
   const f = site.footer;
   const links = f.links.flatMap((l) => {
     const t = resolve(l.link);
-    return t ? [{ ...l, href: t.href }] : [];
+    return t ? [{ ...l, href: t.href, newTab: t.newTab }] : [];
   });
+  const socials = safeSocials(site.socials, base);
   return (
     <footer class="site-footer">
       <div class="container site-footer__inner">
@@ -195,16 +198,16 @@ function Footer({ year }: { year: number }): VNode {
           <ul class="site-footer__links" aria-label="Footer">
             {links.map((l) => (
               <li key={l.id}>
-                <a href={l.href}>{l.label}</a>
+                <a href={l.href} {...(l.newTab ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>{l.label}</a>
               </li>
             ))}
           </ul>
         )}
-        {f.showSocials && site.socials.length > 0 && (
+        {f.showSocials && socials.length > 0 && (
           <ul class="site-footer__links" aria-label="Social links">
-            {site.socials.map((s) => (
+            {socials.map((s) => (
               <li key={s.id}>
-                <a href={s.url} target="_blank" rel="noopener noreferrer">
+                <a href={s.href} target="_blank" rel="noopener noreferrer">
                   {s.label}
                 </a>
               </li>

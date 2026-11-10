@@ -73,3 +73,40 @@ test.describe('animated media', () => {
     await expect(gif).toHaveAttribute('data-src', /\.gif$|^data:image\/gif/);
   });
 });
+
+// Multi-page rendering (v3): a published second page, a hidden page that is not emitted.
+test.describe('pages', () => {
+  const JOURNAL = `${HOME}journal/`;
+
+  test('a published page renders its sections', async ({ page }) => {
+    const response = await page.goto(JOURNAL);
+    expect(response?.status()).toBe(200);
+    await expect(page.locator('h1')).toHaveText('Journal heading');
+    await expect(page).toHaveTitle(/Journal — E2E/);
+  });
+
+  test('the page is in the nav', async ({ page }) => {
+    await page.goto(HOME);
+    await expect(page.locator(`header a[href="${JOURNAL}"]`).first()).toHaveText('Journal');
+  });
+
+  test('markup-looking text is shown as text and does not run', async ({ page }) => {
+    await page.goto(JOURNAL);
+    await expect(page.locator('main script')).toHaveCount(0);
+    await expect(page.locator('main')).toContainText('<script>window.__pwned = true</script> & friends');
+    expect(await page.evaluate(() => (window as unknown as { __pwned?: boolean }).__pwned)).toBeUndefined();
+  });
+
+  test('a hidden page is a 404', async ({ page }) => {
+    const response = await page.goto(`${HOME}secret/`);
+    expect(response?.status()).toBe(404);
+  });
+
+  test('the sitemap lists the published page and not the hidden one', async ({ request }) => {
+    const response = await request.get(`${HOME}sitemap.xml`);
+    expect(response.status()).toBe(200);
+    const xml = await response.text();
+    expect(xml).toContain('/CesartPortfolio/journal/');
+    expect(xml).not.toContain('secret');
+  });
+});

@@ -1,12 +1,14 @@
 import type { VNode } from 'preact';
 import { Inline, RichTextView } from '../RichText';
 import { SectionFrame, titleId } from '../SectionFrame';
+import { safeSocials } from '../../../lib/render-model';
 import { useRender } from '../context';
 import type { SectionOf } from '../types';
 
 /** Variants: `default`, `centered`, `split` (text left, links right). Socials come from `site.socials`. */
 export function Contact({ section }: { section: SectionOf<'contact'> }): VNode {
-  const { site } = useRender();
+  const { site, base } = useRender();
+  const socials = safeSocials(site.socials, base);
   const { heading, body, email, ctaLabel } = section.content;
   const { showEmail, showSocials } = section.settings;
   const id = titleId(section);
@@ -33,11 +35,11 @@ export function Contact({ section }: { section: SectionOf<'contact'> }): VNode {
               {ctaLabel}
             </a>
           </p>
-          {showSocials && site.socials.length > 0 && (
+          {showSocials && socials.length > 0 && (
             <ul class="contact__socials" aria-label="Social links">
-              {site.socials.map((s) => (
+              {socials.map((s) => (
                 <li key={s.id}>
-                  <a href={s.url} target="_blank" rel="noopener noreferrer" data-track="contact_click" data-track-source={s.id}>
+                  <a href={s.href} target="_blank" rel="noopener noreferrer" data-track="contact_click" data-track-source={s.id}>
                     {s.label}
                   </a>
                 </li>
