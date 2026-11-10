@@ -167,7 +167,13 @@ export function mountOverlay(doc: Document, store: EditorStore, hooks: OverlayHo
       doc.documentElement.classList.remove('is-dragging');
       dragging = false;
       if (apply && drop) {
-        if (kind === 'section') store.moveSection(sectionId, drop.index);
+        if (kind === 'section') {
+          // drop.index counts drawn sections only; translate it to page.sections.
+          const others = (store.page?.sections ?? []).filter((s) => s.id !== sectionId);
+          const refId = sectionEls().filter((el) => el.dataset['sectionId'] !== sectionId)[drop.index]?.dataset['sectionId'];
+          const at = refId ? others.findIndex((s) => s.id === refId) : others.length;
+          store.moveSection(sectionId, at);
+        }
         else store.moveBlock(sectionId, blockId, drop.column, drop.index);
       }
     };
@@ -213,6 +219,8 @@ export function mountOverlay(doc: Document, store: EditorStore, hooks: OverlayHo
 
     els.forEach((el, i) => {
       const id = el.dataset['sectionId']!;
+      // Position in page.sections: `i` only counts the sections drawn on this device.
+      const at = page.sections.findIndex((s) => s.id === id);
       const section = store.findSection(id);
       if (!section) return;
       const label = (section.type as string).replace('-', ' ');
@@ -228,12 +236,12 @@ export function mountOverlay(doc: Document, store: EditorStore, hooks: OverlayHo
         if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
         e.preventDefault();
         e.stopPropagation();
-        store.moveSection(id, i + (e.key === 'ArrowUp' ? -1 : 1));
+        store.moveSection(id, at + (e.key === 'ArrowUp' ? -1 : 1));
       });
       tb.append(
         drag,
-        button('up', `Move ${label} section up`, '↑', () => store.moveSection(id, i - 1), i === 0),
-        button('down', `Move ${label} section down`, '↓', () => store.moveSection(id, i + 1), i === els.length - 1),
+        button('up', `Move ${label} section up`, '↑', () => store.moveSection(id, at - 1), at <= 0),
+        button('down', `Move ${label} section down`, '↓', () => store.moveSection(id, at + 1), at === page.sections.length - 1),
         button('duplicate', `Duplicate ${label} section`, '⧉', () => store.duplicateSection(id)),
         button('settings', `Settings of ${label} section`, '⚙', () => store.select({ sectionId: id })),
         button('delete', `Delete ${label} section`, '🗑', () => store.deleteSection(id)),
