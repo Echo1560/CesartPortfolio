@@ -5,13 +5,14 @@
  * button with a label (and the panel offers the same actions), so dragging is never the only way.
  */
 import { isFlexible } from './defaults';
+import { insertIndex, stepIndex } from './section-index';
 import type { EditorStore } from './store';
 
 export interface OverlayHooks {
   /** Open the section picker; the new section goes to `index` of the page. */
-  onInsert(index: number): void;
+  onInsert(index: number, opener: HTMLElement): void;
   /** Open the block picker for a column of a section. */
-  onAddBlock(sectionId: string, column: number): void;
+  onAddBlock(sectionId: string, column: number, opener: HTMLElement): void;
 }
 
 export interface Overlay {
@@ -70,7 +71,7 @@ export function mountOverlay(doc: Document, store: EditorStore, hooks: OverlayHo
     }
     if (r.width !== undefined) el.style.width = `${r.width}px`;
   };
-  const button = (key: string, label: string, text: string, onClick: () => void, disabled = false): HTMLButtonElement => {
+  const button = (key: string, label: string, text: string, onClick: (self: HTMLButtonElement) => void, disabled = false): HTMLButtonElement => {
     const b = doc.createElement('button');
     b.type = 'button';
     b.textContent = text;
@@ -80,7 +81,7 @@ export function mountOverlay(doc: Document, store: EditorStore, hooks: OverlayHo
     b.disabled = disabled;
     b.addEventListener('click', (e) => {
       e.stopPropagation();
-      onClick();
+      onClick(b);
     });
     return b;
   };
@@ -203,8 +204,10 @@ export function mountOverlay(doc: Document, store: EditorStore, hooks: OverlayHo
     const els = sectionEls();
 
     // "+" between sections
+    const ids = page.sections.map((s) => s.id);
+    const drawnIds = els.map((el) => el.dataset['sectionId']!);
     const plusAt = (index: number, y: () => number, label: string) => {
-      const b = button('insert', label, '+', () => hooks.onInsert(index));
+      const b = button('insert', label, '+', (self) => hooks.onInsert(insertIndex(ids, drawnIds, index), self));
       b.className = 'ed-plus';
       b.dataset['index'] = String(index);
       layer.appendChild(b);
@@ -221,6 +224,8 @@ export function mountOverlay(doc: Document, store: EditorStore, hooks: OverlayHo
       const id = el.dataset['sectionId']!;
       // Position in page.sections: `i` only counts the sections drawn on this device.
       const at = page.sections.findIndex((s) => s.id === id);
+      const up = stepIndex(ids, drawnIds, id, -1);
+      const down = stepIndex(ids, drawnIds, id, 1);
       const section = store.findSection(id);
       if (!section) return;
       const label = (section.type as string).replace('-', ' ');
@@ -236,12 +241,13 @@ export function mountOverlay(doc: Document, store: EditorStore, hooks: OverlayHo
         if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
         e.preventDefault();
         e.stopPropagation();
-        store.moveSection(id, at + (e.key === 'ArrowUp' ? -1 : 1));
+        const to = e.key === 'ArrowUp' ? up : down;
+        if (to !== null) store.moveSection(id, to);
       });
       tb.append(
         drag,
-        button('up', `Move ${label} section up`, '↑', () => store.moveSection(id, at - 1), at <= 0),
-        button('down', `Move ${label} section down`, '↓', () => store.moveSection(id, at + 1), at === page.sections.length - 1),
+        button('up', `Move ${label} section up`, '↑', () => up !== null && store.moveSection(id, up), up === null),
+        button('down', `Move ${label} section down`, '↓', () => down !== null && store.moveSection(id, down), down === null),
         button('duplicate', `Duplicate ${label} section`, '⧉', () => store.duplicateSection(id)),
         button('settings', `Settings of ${label} section`, '⚙', () => store.select({ sectionId: id })),
         button('delete', `Delete ${label} section`, '🗑', () => store.deleteSection(id)),
@@ -260,7 +266,7 @@ export function mountOverlay(doc: Document, store: EditorStore, hooks: OverlayHo
           add.className = 'ed-add';
           add.dataset['forSection'] = id;
           add.dataset['for'] = id;
-          const b = button('add-block', cols.length > 1 ? `Add a block to column ${ci + 1}` : 'Add a block', '+ Block', () => hooks.onAddBlock(id, ci));
+          const b = button('add-block', cols.length > 1 ? `Add a block to column ${ci + 1}` : 'Add a block', '+ Block', (self) => hooks.onAddBlock(id, ci, self));
           add.appendChild(b);
           layer.appendChild(add);
           placers.push(() => {
