@@ -27,7 +27,7 @@ interface PageRow {
   position: number;
   sections: { count: number }[];
 }
-interface State {
+export interface State {
   pages: PageRow[];
   media: MediaRow[];
   nav: SiteNav;
@@ -43,7 +43,7 @@ const itemId = (): string => `item-${newId().slice(0, 8)}`;
 /** A free slug for a title: kebab-case, not reserved, not taken. */
 export function suggestSlug(title: string, taken: Iterable<string>): string {
   const used = new Set(taken);
-  let base = kebab(title).slice(0, 90) || 'page';
+  let base = kebab(title).slice(0, 90).replace(/-+$/, '') || 'page';
   if ((RESERVED_SLUGS as readonly string[]).includes(base) || base.startsWith('_')) base = `${base}-page`;
   let slug = base;
   for (let n = 2; used.has(slug); n += 1) slug = `${base}-${n}`;
@@ -133,12 +133,29 @@ async function saveNav(nav: SiteNav): Promise<void> {
   if (!rows?.length) throw new Error('Not saved: you can no longer edit the navigation');
 }
 
+/** Appends a menu item. Shared state only changes once the save succeeded. */
+export async function addNavItem(state: State, item: NavItem): Promise<void> {
+  const nav = { ...state.nav, items: [...state.nav.items, item] };
+  await saveNav(nav);
+  state.nav = nav;
+}
+
 /** Removes every menu and footer link that points to a page. */
-function dropPageLinks(state: State, pageId: string): void {
+function dropPageLinks(state: State, pageId: string): { nav: SiteNav; footer: SiteFooter } {
   const goes = (l: { link: Link }) => l.link.kind === 'page' && l.link.pageId === pageId;
-  state.nav.items = state.nav.items.filter((i) => !goes(i)).map((i) => (i.children ? { ...i, children: i.children.filter((c) => !goes(c)) } : i));
-  if (state.nav.cta && goes(state.nav.cta)) delete state.nav.cta;
-  state.footer.links = state.footer.links.filter((l) => !goes(l));
+  const nav: SiteNav = { ...state.nav, items: state.nav.items.filter((i) => !goes(i)).map((i) => (i.children ? { ...i, children: i.children.filter((c) => !goes(c)) } : i)) };
+  if (nav.cta && goes(nav.cta)) delete nav.cta;
+  return { nav, footer: { ...state.footer, links: state.footer.links.filter((l) => !goes(l)) } };
+}
+
+/** Deletes a page, then strips its menu and footer links (the renderer skips links to missing pages, so a failed cleanup is harmless). */
+export async function deletePage(state: State, pageId: string): Promise<void> {
+  ok(await sb().from('pages').delete().eq('id', pageId).select('id'));
+  const { nav, footer } = dropPageLinks(state, pageId);
+  await saveNav(nav);
+  state.nav = nav;
+  await saveFooter(footer);
+  state.footer = footer;
 }
 
 async function saveFooter(footer: SiteFooter): Promise<void> {
@@ -178,10 +195,7 @@ function pagesCard(state: State, reload: () => Promise<void>): HTMLElement {
       const yes = await confirmDialog(`Delete "${p.title}"?`, `This deletes the page and its ${count} section${count === 1 ? '' : 's'}. Links to it in the menu and footer are removed. Anything you published earlier stays in the version history. This cannot be undone.`, 'Delete page', remove);
       if (!yes) return;
       await run(remove, async () => {
-        dropPageLinks(state, p.id);
-        await saveNav(state.nav);
-        await saveFooter(state.footer);
-        ok(await sb().from('pages').delete().eq('id', p.id).select('id'));
+        await deletePage(state, p.id);
       }, 'Page deleted');
     };
     const home = h('button', { type: 'button', class: 'btn btn--ghost', 'aria-label': `Make ${p.title} the home page` }, 'Make home');
@@ -218,7 +232,7 @@ function pagesCard(state: State, reload: () => Promise<void>): HTMLElement {
   return card('Pages', null, h('p', { class: 'field__hint' }, STATUS_HINT), list, add);
 }
 
-async function duplicatePage(p: PageRow, taken: string[]): Promise<void> {
+export async function duplicatePage(p: PageRow, taken: string[]): Promise<void> {
   const c = sb();
   const [secs, last] = await Promise.all([c.from('sections').select('*, blocks(*)').eq('page_id', p.id).order('position'), c.from('pages').select('position').order('position', { ascending: false }).limit(1)]);
   const position = ((ok(last) as { position: number }[])[0]?.position ?? -1) + 1;
@@ -232,8 +246,14 @@ async function duplicatePage(p: PageRow, taken: string[]): Promise<void> {
     rows.push({ id: sid, page_id: id, type: s.type, variant: s.variant, position: s.position, settings: s.settings, content: s.content, show_on_desktop: s.show_on_desktop, show_on_tablet: s.show_on_tablet, show_on_mobile: s.show_on_mobile });
     for (const b of s.blocks ?? []) blocks.push({ id: newId(), section_id: sid, type: b.type, column_index: b.column_index, position: b.position, settings: b.settings, content: b.content, show_on_desktop: b.show_on_desktop, show_on_tablet: b.show_on_tablet, show_on_mobile: b.show_on_mobile });
   }
-  if (rows.length) ok(await c.from('sections').insert(rows).select('id'));
-  if (blocks.length) ok(await c.from('blocks').insert(blocks).select('id'));
+  try {
+    if (rows.length) ok(await c.from('sections').insert(rows).select('id'));
+    if (blocks.length) ok(await c.from('blocks').insert(blocks).select('id'));
+  } catch (e) {
+    // Do not leave a half-copied draft behind.
+    await c.from('pages').delete().eq('id', id);
+    throw e;
+  }
 }
 
 function newPageDialog(state: State, opener: Element, reload: () => Promise<void>): void {
@@ -291,8 +311,7 @@ function newPageDialog(state: State, opener: Element, reload: () => Promise<void
             if (blocks.length) ok(await c.from('blocks').insert(blocks).select('id'));
           }
           if (inNav.input.checked) {
-            state.nav.items.push({ id: itemId(), label: parsed.data.title.slice(0, 60), link: pageLink(id) });
-            await saveNav(state.nav);
+            await addNavItem(state, { id: itemId(), label: parsed.data.title.slice(0, 60), link: pageLink(id) });
           }
         } catch (e) {
           // Do not leave a half-built page behind.
