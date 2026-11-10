@@ -43,7 +43,7 @@ const itemId = (): string => `item-${newId().slice(0, 8)}`;
 /** A free slug for a title: kebab-case, not reserved, not taken. */
 export function suggestSlug(title: string, taken: Iterable<string>): string {
   const used = new Set(taken);
-  let base = kebab(title).slice(0, 90) || 'page';
+  let base = kebab(title).slice(0, 90).replace(/-+$/, '') || 'page';
   if ((RESERVED_SLUGS as readonly string[]).includes(base) || base.startsWith('_')) base = `${base}-page`;
   let slug = base;
   for (let n = 2; used.has(slug); n += 1) slug = `${base}-${n}`;

@@ -178,7 +178,9 @@ export async function mountAdmin(page: Page, backend: Backend, hash = '', opts: 
       const query = Object.fromEntries(url.searchParams);
       if (req.method() === 'GET') {
         backend.reads.push({ table, query });
-        const found = rows.filter((r) => matches(r, query));
+        let found = rows.filter((r) => matches(r, query));
+        // PostgREST embed `sections(count)`: the number of child rows, as the pages manager asks for it.
+        if (table === 'pages' && (query['select'] ?? '').includes('sections(count)')) found = found.map((r) => ({ ...r, sections: [{ count: (backend.tables['sections'] ?? []).filter((s) => s['page_id'] === r['id']).length }] }));
         if ((req.headers()['accept'] ?? '').includes('vnd.pgrst.object')) return found[0] ? json(route, found[0]) : json(route, { message: 'no rows' }, 406);
         return json(route, found);
       }
