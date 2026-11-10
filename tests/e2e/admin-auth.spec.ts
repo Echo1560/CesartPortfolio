@@ -66,7 +66,7 @@ test('a signed-in user who is not an active editor is sent back to the login for
 
 // Known bug (child issue of TITA-76): boot() and the INITIAL_SESSION auth event both run route(); the
 // second run re-renders the login form after the first consumed `loginMessage`, so the notice is lost.
-test.fixme('a non-editor is told why they were refused', async ({ page }) => {
+test('a non-editor is told why they were refused', async ({ page }) => {
   const backend = newBackend();
   backend.tables = draftTables();
   backend.isEditor = false;

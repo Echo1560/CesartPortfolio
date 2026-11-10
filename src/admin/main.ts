@@ -60,8 +60,8 @@ async function route(hasSession: boolean | null): Promise<void> {
   const session = data.session;
   if (hasSession === false || !session) {
     shownFor = null;
+    // Several route() runs can render the login form in a row (boot + auth events); keep the notice until a shell is shown.
     renderLogin(root, loginMessage);
-    loginMessage = '';
     return;
   }
   if (recovering) {
@@ -81,6 +81,7 @@ async function route(hasSession: boolean | null): Promise<void> {
     return;
   }
   shownFor = session.user.id;
+  loginMessage = '';
   await renderShell(session.user.email ?? '');
 }
 
