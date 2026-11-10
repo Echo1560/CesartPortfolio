@@ -21,7 +21,7 @@ The free plan pauses a project after a week without traffic. The keep-alive work
 
 ## 2. Apply the migrations
 
-From the repo root:
+From the repo root. The commands are the same in bash and PowerShell:
 
 ```sh
 npx supabase login                      # opens the browser once
@@ -61,7 +61,7 @@ If the bucket is missing, step 2 did not finish. Run `npx supabase db push` agai
 
 ## 5. Edge Function secrets and deploy
 
-Generate two random values (one per line, keep them in the password manager):
+Generate two random values (one per line, keep them in the password manager). The commands are the same in bash and PowerShell:
 
 ```sh
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"   # EVENTS_HASH_SECRET
@@ -75,13 +75,23 @@ Create the GitHub token used by the Publish button:
 3. **Repository access: Only select repositories → `Echo1560/CesartPortfolio`.**
 4. **Repository permissions: Contents → Read and write.** Nothing else (Metadata: read-only is added automatically). This is the minimum GitHub requires for `POST /repos/{owner}/{repo}/dispatches`. It cannot touch any other repository, and it has no Actions, Pages, Secrets or Administration rights.
 
-Set the secrets and deploy the functions:
+Set the secrets and deploy the functions.
+
+macOS / Linux / Git Bash:
 
 ```sh
 npx supabase secrets set \
   EVENTS_HASH_SECRET=<random 1> \
   PUBLISH_STATUS_TOKEN=<random 2> \
   GITHUB_DISPATCH_TOKEN=<github token>
+npx supabase functions deploy           # track, publish, publish-status, invite-editor, remove-editor
+npx supabase secrets list               # shows the names (digests only, never the values)
+```
+
+PowerShell (the `\` line breaks above do not work there, so the first command is one line):
+
+```powershell
+npx supabase secrets set EVENTS_HASH_SECRET=<random 1> PUBLISH_STATUS_TOKEN=<random 2> GITHUB_DISPATCH_TOKEN=<github token>
 npx supabase functions deploy           # track, publish, publish-status, invite-editor, remove-editor
 npx supabase secrets list               # shows the names (digests only, never the values)
 ```
@@ -145,8 +155,18 @@ Expected output: `→ HOSTED project …`, the number of files uploaded, the dra
 1. Run the same import command again. It must print `→ publish: the live snapshot already matches, nothing to do`. That proves the live snapshot equals the imported draft, which is built from `content/` by the same function CI tests.
 2. Build from the hosted snapshot with the public key only, exactly as the deploy does:
 
+   macOS / Linux / Git Bash:
+
    ```sh
    CONTENT_SOURCE=supabase PUBLIC_SUPABASE_URL=https://<ref>.supabase.co PUBLIC_SUPABASE_ANON_KEY='<anon key>' npm run build
+   ```
+
+   PowerShell (the last line clears the variables; otherwise every later `npm run build` in that window also builds from Supabase):
+
+   ```powershell
+   $env:CONTENT_SOURCE = 'supabase'; $env:PUBLIC_SUPABASE_URL = 'https://<ref>.supabase.co'; $env:PUBLIC_SUPABASE_ANON_KEY = '<anon key>'
+   npm run build
+   Remove-Item Env:CONTENT_SOURCE, Env:PUBLIC_SUPABASE_URL, Env:PUBLIC_SUPABASE_ANON_KEY
    ```
 
    It must finish with no `ContentSourceError` (that would mean a missing download or nothing published) and no `ContentError`. The page count must equal a plain `npm run build` (14 pages with the placeholder content).
@@ -181,8 +201,16 @@ Check under **Accounts** in the dashboard that both people show as **owner · Ac
 6. **Keep-alive:** Actions → **Keep Supabase alive** → Run workflow. It must pass with `Supabase answered HTTP 200`. It then runs every 3 days on its own.
 7. **Private data stays private:** with the public key only, the draft tables must be closed:
 
+   macOS / Linux / Git Bash:
+
    ```sh
    curl -s "https://<ref>.supabase.co/rest/v1/works?select=id" -H "apikey: <anon key>"
+   ```
+
+   PowerShell (type `curl.exe`: in Windows PowerShell, plain `curl` is an alias for `Invoke-WebRequest` and rejects these flags):
+
+   ```powershell
+   curl.exe -s "https://<ref>.supabase.co/rest/v1/works?select=id" -H "apikey: <anon key>"
    ```
 
    The answer must be `permission denied for table works` (HTTP 401). Visitors only ever read the published snapshot.
@@ -208,7 +236,7 @@ When to run it: once a year is enough at this site's traffic. Run it sooner if *
 
 - **Deploy fails with `Supabase secrets missing`:** a step 6 secret is missing or misspelled.
 - **Deploy fails with `get_published_content() answered HTTP …` or `nothing is published`:** the project is paused (restore it in the dashboard) or step 7 was not run.
-- **Publish stays on Queued, or fails with an upstream error:** `GITHUB_DISPATCH_TOKEN` is wrong, expired, or lacks *Contents: read and write* on this repo. Make a new token and run `npx supabase secrets set GITHUB_DISPATCH_TOKEN=…`.
+- **Publish stays on Queued, or fails with an upstream error:** `GITHUB_DISPATCH_TOKEN` is wrong, expired, or lacks *Contents: read and write* on this repo. Make a new token and run `npx supabase secrets set GITHUB_DISPATCH_TOKEN=…` (the same command in bash and PowerShell).
 - **Publish stays on Running after the Actions run finished:** `PUBLISH_STATUS_TOKEN` differs between Supabase and GitHub. Set the same value in both places.
 - **No invite or reset email:** check the SMTP settings (step 3) and Authentication → Logs.
 - **Invite link opens the public site instead of the dashboard:** the Site URL or Redirect URLs in step 3 are wrong.
