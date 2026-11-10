@@ -11,6 +11,7 @@ import { inFlight, LABEL, listRuns, type Run } from '../views/publish';
 import { mountCanvas, type Canvas } from './canvas';
 import { loadEditorData } from './model';
 import { createPanel, type Panel } from './panel';
+import { pickBlock, pickSection } from './picker';
 import { EditorStore, type Device, type SaveState } from './store';
 import type { FieldBinding } from './inline';
 
@@ -73,6 +74,7 @@ export async function renderEditor(el: HTMLElement, opts: { slug?: string; email
   );
   const undo = h('button', { type: 'button', class: 'btn-icon', 'aria-label': 'Undo', title: 'Undo (Ctrl+Z)', onclick: () => store.undo() }, '↶');
   const redo = h('button', { type: 'button', class: 'btn-icon', 'aria-label': 'Redo', title: 'Redo (Ctrl+Shift+Z)', onclick: () => store.redo() }, '↷');
+  const flash = h('span', { class: 'editor__flash', role: 'status', 'aria-live': 'polite' });
   const saveState = h('span', { class: 'editor__save', role: 'status', 'aria-live': 'polite' });
   const publishButton = h('button', { type: 'button', class: 'btn' }, 'Publish');
   const publishState = h('span', { class: 'editor__publish', role: 'status', 'aria-live': 'polite' });
@@ -90,6 +92,7 @@ export async function renderEditor(el: HTMLElement, opts: { slug?: string; email
     h('div', { class: 'editor__group', role: 'group', 'aria-label': 'Preview width' }, ...deviceButtons),
     h('div', { class: 'editor__group', role: 'group', 'aria-label': 'History' }, undo, redo),
     saveState,
+    flash,
     h('span', { class: 'grow' }),
     h('a', { class: 'btn btn--ghost', href: '#/preview' }, 'Preview'),
     publishButton,
@@ -159,6 +162,8 @@ export async function renderEditor(el: HTMLElement, opts: { slug?: string; email
   canvas = mountCanvas(stage, store, {
     onEditable: setFmt,
     onMedia: (_sel, slot, open) => panel.focusMedia(slot, open),
+    onInsert: (index) => void pickSection(store, index),
+    onAddBlock: (sectionId, column) => void pickBlock(store, sectionId, column),
   });
   el.append(topbar, fmt, notice, h('div', { class: 'editor__body' }, h('div', { class: 'editor__canvas' }, stage), panelHost));
 
@@ -214,8 +219,8 @@ export async function renderEditor(el: HTMLElement, opts: { slug?: string; email
     switch (e.kind) {
       case 'content':
         paintBar();
-        if (e.source !== 'inline') canvas.refresh(e.source === 'history');
-        if (e.source === 'history') panel.render();
+        if (e.source !== 'inline') canvas.refresh(e.source === 'history' || e.source === 'structure');
+        if (e.source === 'history' || e.source === 'structure') panel.render();
         break;
       case 'selection':
         canvas.markSelected();
@@ -228,6 +233,10 @@ export async function renderEditor(el: HTMLElement, opts: { slug?: string; email
         break;
       case 'device':
         paintDevice();
+        break;
+      case 'flash':
+        clear(flash);
+        if (store.flash) flash.append(store.flash, ' ', h('button', { type: 'button', class: 'link', onclick: () => store.undo() }, 'Undo'));
         break;
       case 'save':
         paintSave();
@@ -245,6 +254,12 @@ export async function renderEditor(el: HTMLElement, opts: { slug?: string; email
     const typing = t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || t instanceof HTMLSelectElement;
     if (e.key === 'Escape' && !typing && !document.querySelector('dialog[open]')) {
       store.select(null);
+      return;
+    }
+    if (e.altKey && !typing && (e.key === 'ArrowUp' || e.key === 'ArrowDown') && store.selection) {
+      // Keyboard alternative to dragging: Alt+Up / Alt+Down moves the selected block or section.
+      e.preventDefault();
+      store.nudgeSelection(e.key === 'ArrowUp' ? -1 : 1);
       return;
     }
     const mod = e.ctrlKey || e.metaKey;

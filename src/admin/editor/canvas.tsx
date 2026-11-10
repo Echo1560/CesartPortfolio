@@ -15,6 +15,7 @@ import { fontFaceCss, themeToCss } from '../../lib/theme-css';
 import { signedUrls } from '../data';
 import { isResolvedMedia } from './model';
 import { findFields, inlineOf, richOf, type FieldBinding } from './inline';
+import { mountOverlay, OVERLAY_CSS, type Overlay, type OverlayHooks } from './overlay';
 import type { EditorStore, Selection } from './store';
 
 const BASE = import.meta.env.BASE_URL.replace(/\/*$/, '/');
@@ -35,9 +36,10 @@ html{scroll-behavior:auto}
 .hide-desktop.hide-tablet.hide-mobile{display:block!important;opacity:.35}
 a{cursor:default}
 .site-header{position:static}
-`;
+.columns__col{min-height:3rem}
+${OVERLAY_CSS}`;
 
-export interface CanvasHooks {
+export interface CanvasHooks extends OverlayHooks {
   /** An editable text element gained (binding) or lost (null) focus. */
   onEditable(binding: FieldBinding | null): void;
   /** An image or GIF was clicked (`open` on double click). */
@@ -113,6 +115,7 @@ export function mountCanvas(host: HTMLElement, store: EditorStore, hooks: Canvas
   let pending: { fresh: boolean } | null = null;
   let ready = false;
   let destroyed = false;
+  let overlay: Overlay | null = null;
 
   const frame = document.createElement('iframe');
   frame.className = 'canvas__frame';
@@ -179,12 +182,14 @@ export function mountCanvas(host: HTMLElement, store: EditorStore, hooks: Canvas
     if (!sel) return;
     const target = sel.blockId ? doc.querySelector(`[data-block-id="${sel.blockId}"]`) : doc.querySelector(`[data-section-id="${sel.sectionId}"]`);
     target?.classList.add('is-selected');
+    overlay?.refresh();
   };
 
   /** After every render: selection classes and editable text. */
   const decorate = (): void => {
     if (!doc) return;
     typed = new Set();
+    overlay?.rebuild();
     markSelected();
     bindings = findFields(doc);
     for (const b of bindings) {
@@ -246,7 +251,7 @@ export function mountCanvas(host: HTMLElement, store: EditorStore, hooks: Canvas
   const attach = (d: Document): void => {
     d.addEventListener('click', (e) => {
       const target = e.target as Element | null;
-      if (!target) return;
+      if (!target || target.closest('#ed-layer')) return;
       // Links never navigate inside the editor.
       if (target.closest('a')) e.preventDefault();
       if (target.closest('.site-header, .site-footer')) return;
@@ -274,6 +279,11 @@ export function mountCanvas(host: HTMLElement, store: EditorStore, hooks: Canvas
         else store.select(null);
         return;
       }
+      if (e.altKey && !active && (e.key === 'ArrowUp' || e.key === 'ArrowDown') && store.selection) {
+        e.preventDefault();
+        store.nudgeSelection(e.key === 'ArrowUp' ? -1 : 1);
+        return;
+      }
       const mod = e.ctrlKey || e.metaKey;
       if (!mod) return;
       const k = e.key.toLowerCase();
@@ -297,6 +307,7 @@ export function mountCanvas(host: HTMLElement, store: EditorStore, hooks: Canvas
     if (!doc || !body) return;
     ready = true;
     attach(doc);
+    overlay = mountOverlay(doc, store, hooks);
     void paint(pending?.fresh ?? true);
     pending = null;
   });
@@ -319,6 +330,7 @@ export function mountCanvas(host: HTMLElement, store: EditorStore, hooks: Canvas
     blur: () => active?.el.blur(),
     destroy: () => {
       destroyed = true;
+      overlay?.destroy();
       if (body) render(null, body);
       frame.remove();
     },

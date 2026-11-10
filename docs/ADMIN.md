@@ -184,4 +184,13 @@ For safety, the page always says *"a reset link is on its way"*, even when the e
 - **Inline text** (`inline.ts`): headings, captions and paragraphs are `contenteditable`; the DOM is read back into the contract's rich-text JSON (bold, italic, link, h2-h4, lists). No HTML is stored or pasted (paste is plain text).
 - **Store** (`store.ts`): one state with undo/redo, debounced autosave (1.2 s) of changed sections and blocks (validated with `sectionDraftSchema` / `blockDraftSchema`; the audit trigger sets `updated_by`), and a notice when another editor changed the same item since load (last write wins).
 - **Publish**: flushes the autosave, calls the `publish` function and follows the run with the same status poll as v2.
-- Adding/moving/deleting sections and blocks, the page manager and the theme editor arrive in stages 4-6.
+- The page manager and the theme editor arrive in stages 5-6.
+
+### Sections and blocks (TITA-97)
+
+- **Add a section:** the **+** between sections (also "Add a section" in the panel when nothing is selected) opens a picker of all 11 types, each with a wireframe. The section starts with sensible default content (`defaults.ts`; image sections ask for a library file first). Hero and call-to-action buttons are edited in the panel.
+- **Section toolbar** (hover or select): drag handle, up/down, duplicate, settings, delete. The same actions are buttons in the panel. **Keyboard:** Alt+Up / Alt+Down moves the selected section or block, and the arrow keys on a focused drag handle do the same. Delete shows "Section deleted. **Undo**" (or Ctrl+Z); nothing is lost until the autosave has run and a later edit pushes it out of the history.
+- **Settings:** variant, alignment, width, spacing, colour scheme, background image, columns, anchor id and per-device visibility.
+- **Blocks** (text and columns sections): "+ Block" under each column or "Add a block" in the panel. Heading, paragraph, image/GIF, button, divider, spacer, quote and video (a poster image is required). Drag a block's handle between columns, use the arrows, or the **Column** select. Lowering the column count moves the blocks of the removed columns into the last one.
+- **Gallery, featured and works-list:** choose all works, a category, tags or a hand-picked list (and the sort); featured works have an ordered list. This replaces the v2 layout page.
+- **Saving structure** (`store.ts`, `sync`): new rows are inserted, removed rows deleted, and a page's positions are written in one upsert (the position constraints are deferred). Section settings that raise a column count are saved before blocks, and ones that lower it after.
