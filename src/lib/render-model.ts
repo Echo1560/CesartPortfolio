@@ -138,6 +138,14 @@ export function featuredWorks(works: Work[], workIds: string[], limit?: number):
   return limit ? picked.slice(0, limit) : picked;
 }
 
+/** Social links whose URL passes the safe-href check (defence in depth: `z.url()` also accepts `javascript:`). */
+export function safeSocials<S extends { url: string }>(socials: S[], base: string): (S & { href: string })[] {
+  return socials.flatMap((s) => {
+    const href = safeUrl(base, s.url);
+    return href ? [{ ...s, href }] : [];
+  });
+}
+
 export function isHiddenEverywhere(v: Visibility): boolean {
   return !v.desktop && !v.tablet && !v.mobile;
 }
@@ -169,7 +177,7 @@ export function pageSeo(snapshot: Pick<SnapshotV3, 'site'>, page: SnapshotPage):
   };
 }
 
-/** Published pages only, home first, in nav order. */
+/** Published pages only (the snapshot is already in nav order). */
 export function publishedPages(snapshot: Pick<SnapshotV3, 'pages'>): SnapshotPage[] {
   return snapshot.pages.filter((p) => p.status === 'published');
 }
