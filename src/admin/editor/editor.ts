@@ -50,7 +50,7 @@ export async function renderEditor(el: HTMLElement, opts: { slug?: string; email
   try {
     store = new EditorStore(await loadEditorData(), opts.slug);
   } catch (e) {
-    loading.replaceWith(h('p', { class: 'field__error', role: 'alert' }, (e as Error).message));
+    loading.replaceWith(h('p', { class: 'field__error', role: 'alert' }, `${(e as Error).message} If a media file is missing alt text or a poster, fix it in the classic forms (Content, Works, Media library), then reload.`));
     return;
   }
   loading.remove();
@@ -185,7 +185,9 @@ export async function renderEditor(el: HTMLElement, opts: { slug?: string; email
   publishButton.addEventListener('click', async () => {
     publishButton.disabled = true;
     try {
-      await store.flush();
+      // An edit can land while saving: go on until nothing is pending.
+      do await store.flush();
+      while (store.saveState === 'dirty' || store.saveState === 'saving');
       if (store.saveState === 'error') throw new Error(`Fix the unsaved change first: ${store.saveError}`);
       await callFunction('publish');
       toast('Publish started');

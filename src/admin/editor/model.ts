@@ -50,7 +50,7 @@ export function toDraftJson<T>(value: T): T {
 }
 
 /** A library file as the snapshot embeds it. */
-export function resolvedFromRow(row: MediaRow, previous?: { alt?: string; loop?: boolean }): Record<string, unknown> {
+export function resolvedFromRow(row: MediaRow, previous?: { alt?: string; loop?: boolean; posterId?: string; poster?: string }): Record<string, unknown> {
   return {
     mediaId: row.id,
     type: row.kind,
@@ -59,6 +59,7 @@ export function resolvedFromRow(row: MediaRow, previous?: { alt?: string; loop?:
     width: row.width ?? 1,
     height: row.height ?? 1,
     ...(previous?.loop !== undefined ? { loop: previous.loop } : {}),
+    ...(row.kind === 'video' && previous?.posterId ? { posterId: previous.posterId, poster: previous.poster } : {}),
   };
 }
 
@@ -81,13 +82,27 @@ export function blockPayload(b: LooseBlock) {
   return { settings: toDraftJson(b.settings), content: toDraftJson(b.content), ...visibilityColumns(b.visibility) };
 }
 
+/** The publish rules for media (alt text, video poster): the draft view refuses to load without them. */
+function checkMedia(value: unknown, where: string): void {
+  if (Array.isArray(value)) return value.forEach((v) => checkMedia(v, where));
+  if (typeof value !== 'object' || value === null) return;
+  if (isResolvedMedia(value)) {
+    if (!String(value['alt'] ?? '').trim()) throw new Error(`${where}: an image needs alt text`);
+    if (value['type'] === 'video' && !value['posterId']) throw new Error(`${where}: a video needs a poster image`);
+    return;
+  }
+  Object.values(value).forEach((v) => checkMedia(v, where));
+}
+
 /** Throws a sentence for the editor when the section would be refused. */
 export function checkSection(s: LooseSection): void {
+  checkMedia([s.settings, s.content], `${s.type} section`);
   const r = sectionDraftSchema.safeParse({ type: s.type, variant: s.variant, settings: toDraftJson(s.settings), content: toDraftJson(s.content) });
   if (!r.success) throw new Error(`${s.type} section: ${r.error.issues.map((i) => `${i.path.join('.')} ${i.message}`).join('; ')}`);
 }
 
 export function checkBlock(b: LooseBlock): void {
+  checkMedia(b.content, `${b.type} block`);
   const r = blockDraftSchema.safeParse({ type: b.type, settings: toDraftJson(b.settings), content: toDraftJson(b.content) });
   if (!r.success) throw new Error(`${b.type} block: ${r.error.issues.map((i) => `${i.path.join('.')} ${i.message}`).join('; ')}`);
 }

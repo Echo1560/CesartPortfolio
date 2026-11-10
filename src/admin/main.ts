@@ -126,7 +126,7 @@ async function renderShell(email: string): Promise<void> {
         await renderEditor(main, { slug: hashParts()[1], email, onLogout: () => void sb().auth.signOut() });
         return;
       }
-      draft ??= await loadDraft();
+      draft = await loadDraft(); // fresh: the visual editor may have changed it
       await render(main, ctx);
     } catch (e) {
       main.appendChild(h('p', { class: 'field__error', role: 'alert' }, (e as Error).message));

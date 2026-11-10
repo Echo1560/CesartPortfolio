@@ -105,8 +105,9 @@ function walk(node: Node, marks: MarkKey[], out: { text?: string; marks: MarkKey
   else if (tag === 'A') {
     const href = hrefOf(el as HTMLAnchorElement, base);
     if (href) next = [...marks, `link:${href}`];
-  } else if (el.style.fontWeight === 'bold' || Number(el.style.fontWeight) >= 600) next = [...marks, 'bold'];
-  else if (el.style.fontStyle === 'italic') next = [...marks, 'italic'];
+  }
+  if (tag !== 'STRONG' && tag !== 'B' && (el.style.fontWeight === 'bold' || Number(el.style.fontWeight) >= 600)) next = [...marks, 'bold'];
+  if (el.style.fontStyle === 'italic' && tag !== 'EM' && tag !== 'I') next = [...next, 'italic'];
   for (const child of node.childNodes) walk(child, next, out, base);
 }
 

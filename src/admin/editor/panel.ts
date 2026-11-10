@@ -168,7 +168,7 @@ export function createPanel(host: HTMLElement, store: EditorStore): Panel {
     const choose = async () => {
       const picked = await pickMedia(draftLike, opts.kinds, () => undefined);
       if (!picked) return;
-      setMedia(resolvedFromRow(picked, { alt: current?.['alt'] && current['mediaId'] === picked.id ? current['alt'] : undefined, loop: current?.['loop'] }));
+      setMedia(resolvedFromRow(picked, { alt: current?.['alt'] && current['mediaId'] === picked.id ? current['alt'] : undefined, loop: current?.['loop'], posterId: current?.['posterId'], poster: current?.['poster'] }));
       render();
     };
     openers.set(slot, () => void choose());
@@ -176,11 +176,31 @@ export function createPanel(host: HTMLElement, store: EditorStore): Panel {
     const group = h('fieldset', { class: 'panel__group', 'data-media-slot': slot }, h('legend', {}, label), current ? thumb(row, current['alt']) : null, h('div', { class: 'row' }, replace));
     if (current) {
       const alt = textInput(current['alt'] ?? '', { maxlength: 1000 });
+      const altField = field('Alt text', alt, 'Describe the image for people who cannot see it.');
       alt.addEventListener('input', () => {
         const m = getMedia();
-        if (m) setMedia({ ...m, alt: alt.value });
+        const text = alt.value.trim();
+        // Never save an empty alt: the draft could not be loaded again. The library's default text is the fallback.
+        const value = text || row?.default_alt?.trim() || '';
+        if (!value) {
+          altField.setError('Alt text is required. The last text is kept.');
+          return;
+        }
+        altField.setError(null);
+        if (m) setMedia({ ...m, alt: value });
       });
-      group.appendChild(field('Alt text', alt, 'Describe the image for people who cannot see it.').el);
+      group.appendChild(altField.el);
+      if (current['type'] === 'video') {
+        const choosePoster = async () => {
+          const picked = await pickMedia(draftLike, ['image'], () => undefined);
+          const m = getMedia();
+          if (!picked || !m) return;
+          setMedia({ ...m, posterId: picked.id, poster: picked.storage_path });
+          render();
+        };
+        group.appendChild(h('p', { class: 'field__hint' }, current['posterId'] ? 'Poster image set.' : 'A video needs a poster image before it can be saved.'));
+        group.appendChild(h('button', { type: 'button', class: 'btn btn--ghost', onclick: () => void choosePoster() }, current['posterId'] ? 'Change poster…' : 'Choose poster…'));
+      }
       if (opts.removable) group.querySelector('.row')!.appendChild(h('button', { type: 'button', class: 'btn btn--ghost', onclick: () => { setMedia(undefined); render(); } }, 'Remove'));
     }
     return group;

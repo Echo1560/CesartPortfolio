@@ -222,6 +222,7 @@ export class EditorStore {
         checkSection(s);
         const { data, error } = await c.from('sections').update(sectionPayload(s)).eq('id', id).select('id, updated_at');
         if (error) throw new Error(explain(error));
+        if (!data?.length) throw new Error('Not saved: you can no longer edit this item');
         this.remember(id, data);
         this.saved.set(`s:${id}`, payloads.get(`s:${id}`)!);
       }
@@ -230,6 +231,7 @@ export class EditorStore {
         checkBlock(found.block);
         const { data, error } = await c.from('blocks').update(blockPayload(found.block)).eq('id', id).select('id, updated_at');
         if (error) throw new Error(explain(error));
+        if (!data?.length) throw new Error('Not saved: you can no longer edit this item');
         this.remember(id, data);
         this.saved.set(`b:${id}`, payloads.get(`b:${id}`)!);
       }
@@ -241,7 +243,7 @@ export class EditorStore {
       const message = (e as Error).message;
       this.setSave('error', message);
       // A refused value stays refused until the editor changes it; a network problem is retried.
-      if (!/section:|block:/.test(message)) this.schedule(RETRY_MS);
+      if (!/section:|block:|Not saved/.test(message)) this.schedule(RETRY_MS);
     }
   }
 

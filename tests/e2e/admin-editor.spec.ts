@@ -136,3 +136,28 @@ test('a change by another editor since load shows a notice (last write wins)', a
   await expect(page.getByRole('alert').filter({ hasText: 'changed this page since you opened it' })).toBeVisible();
   await saved(page, backend);
 });
+
+test('clearing alt text with no library default is refused and nothing is written', async ({ page }) => {
+  const backend = seeded();
+  backend.tables['media'] = [{ id: HERO.content.media!.mediaId, storage_path: 'x.png', kind: 'image', mime_type: 'image/png', bytes: 1, width: 10, height: 10, default_alt: '', original_name: 'x.png', updated_at: 'x', updated_by: null }];
+  await mountAdmin(page, backend);
+  await canvas(page).locator('[data-section-type="hero"]').click({ position: { x: 5, y: 5 } });
+  const panel = page.getByRole('complementary', { name: 'Settings' });
+  await panel.getByLabel('Alt text').fill('');
+  await expect(panel.getByText('Alt text is required')).toBeVisible();
+  await page.waitForTimeout(1800);
+  expect(sectionWrites(backend)).toEqual([]);
+});
+
+test('a video without a poster is refused at save', async ({ page }) => {
+  const backend = seeded();
+  const media = JSON.parse(JSON.stringify(snapshot)) as typeof snapshot;
+  delete (media.pages[0]!.sections[0]!.content.media as Record<string, unknown>)['posterId'];
+  backend.rpc['build_content_v3'] = () => media;
+  await mountAdmin(page, backend);
+  await canvas(page).locator('.hero__title').click();
+  await page.keyboard.type('!');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.editor__save')).toContainText('needs a poster', { timeout: 8000 });
+  expect(sectionWrites(backend)).toEqual([]);
+});
