@@ -1,10 +1,11 @@
-/** Stats: visits over time, top works, referrers and devices. Real events only; empty states otherwise. */
+/** Stats: visits over time, top pages, top works, referrers and devices. Real events only; empty states otherwise. */
 import { clear, field, h, select, textInput } from '../dom';
 import { explain, sb } from '../supabase';
 import type { ViewContext } from '../main';
 import { card } from './shared';
 
 interface Daily { day: string; page_views: number; visitors: number }
+interface TopPage { page_slug: string; title: string | null; page_views: number; visitors: number; contact_clicks: number }
 interface TopWork { work_slug: string; title: string | null; opens: number; video_plays: number }
 interface Referrer { referrer_host: string; page_views: number }
 interface Device { device: string; page_views: number }
@@ -100,9 +101,10 @@ export async function renderStats(el: HTMLElement, _ctx: ViewContext): Promise<v
     const args = { p_from: start.toISOString(), p_to: end.toISOString() };
     out.setAttribute('aria-busy', 'true');
     try {
-      const [overview, daily, works, refs, devices] = await Promise.all([
+      const [overview, daily, pages, works, refs, devices] = await Promise.all([
         rpc<Overview>('stats_overview', args),
         rpc<Daily>('stats_daily', args),
+        rpc<TopPage>('stats_top_pages', { ...args, p_limit: 10 }),
         rpc<TopWork>('stats_top_works', { ...args, p_limit: 10 }),
         rpc<Referrer>('stats_referrers', { ...args, p_limit: 10 }),
         rpc<Device>('stats_devices', args),
@@ -114,6 +116,7 @@ export async function renderStats(el: HTMLElement, _ctx: ViewContext): Promise<v
       out.append(
         h('dl', { class: 'tiles' }, ...tiles.map(([label, v]) => h('div', { class: 'tile' }, h('dt', {}, label), h('dd', {}, num(v))))),
         card('Visits over time', null, dailyChart(daily)),
+        card('Top pages', null, barTable('Pages by page views', ['Page', 'Page views'], pages.map((p) => [p.title ?? `/${p.page_slug}/`, Number(p.page_views), `${num(p.page_views)} views · ${num(p.visitors)} visitors · ${num(p.contact_clicks)} contact clicks`]))),
         card('Top works', null, barTable('Works by opens', ['Work', 'Opens and plays'], works.map((w) => [w.title ?? w.work_slug, Number(w.opens), `${num(w.opens)} opens · ${num(w.video_plays)} plays`]))),
         card('Referrers', null, barTable('Referrers by page views', ['Source', 'Page views'], refs.map((r) => [r.referrer_host, Number(r.page_views)]))),
         card('Devices', null, h('p', { class: 'field__hint' }, 'Includes bots, shown as "bot".'), barTable('Page views by device', ['Device', 'Page views'], devices.map((d) => [d.device, Number(d.page_views)]))),

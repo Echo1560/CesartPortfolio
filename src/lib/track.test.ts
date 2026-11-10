@@ -49,6 +49,11 @@ describe('buildTrackBody', () => {
     });
     expect(buildTrackBody('contact_click', { source: undefined }, '/', '')).toEqual({ v: 1, name: 'contact_click', path: '/' });
   });
+
+  it('adds the page slug when the page has one', () => {
+    expect(buildTrackBody('page_view', { path: '/CesartPortfolio/' }, '/', '', 'home')).toEqual({ v: 1, name: 'page_view', path: '/CesartPortfolio/', page: 'home' });
+    expect(buildTrackBody('page_view', undefined, '/CesartPortfolio/work/a/', '', undefined)).toEqual({ v: 1, name: 'page_view', path: '/CesartPortfolio/work/a/' });
+  });
 });
 
 describe('track', () => {

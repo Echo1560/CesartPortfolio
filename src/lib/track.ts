@@ -21,6 +21,8 @@ export interface TrackBody {
   name: TrackEvent;
   path: string;
   slug?: string;
+  /** Slug of the v3 page (`<body data-page-slug>`); absent on work pages. */
+  page?: string;
   referrer?: string;
   props?: Record<string, string>;
 }
@@ -40,19 +42,21 @@ export function isAdminPath(pathname: string, base: string = import.meta.env.BAS
 /**
  * Builds the beacon body from a call site's payload. `slug` and `path` are
  * fields of their own; other string values become `props` (the function keeps
- * only the ones it knows).
+ * only the ones it knows). `page` is the slug of the page the event happened on.
  */
 export function buildTrackBody(
   event: TrackEvent,
   payload: Record<string, unknown> | undefined,
   pathname: string,
   referrer: string,
+  page?: string,
 ): TrackBody {
   const { slug, path, ...rest } = payload ?? {};
   const props: Record<string, string> = {};
   for (const [k, v] of Object.entries(rest)) if (typeof v === 'string') props[k] = v;
   const body: TrackBody = { v: 1, name: event, path: typeof path === 'string' ? path : pathname };
   if (typeof slug === 'string' && slug) body.slug = slug;
+  if (page) body.page = page;
   if (referrer) body.referrer = referrer;
   if (Object.keys(props).length > 0) body.props = props;
   return body;
@@ -63,7 +67,7 @@ export function track(event: TrackEvent, payload?: Record<string, unknown>): voi
     const endpoint = trackEndpoint();
     if (!endpoint || typeof navigator === 'undefined' || typeof navigator.sendBeacon !== 'function') return;
     if (isAdminPath(location.pathname)) return;
-    const body = buildTrackBody(event, payload, location.pathname, document.referrer);
+    const body = buildTrackBody(event, payload, location.pathname, document.referrer, document.body?.dataset.pageSlug);
     navigator.sendBeacon(endpoint, new Blob([JSON.stringify(body)], { type: 'text/plain;charset=UTF-8' }));
   } catch {
     // Analytics must never break the page.

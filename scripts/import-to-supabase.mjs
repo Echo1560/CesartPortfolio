@@ -14,8 +14,13 @@
  *   3. upserts the draft tables (media, site, socials, categories, works,
  *      layout) and replaces the placements and featured list of the imported
  *      content. Rows that are not in content/ (other works, uploads) are kept.
- *   4. with --publish: stores a `succeeded` publish run whose snapshot is
- *      build_content(true), unless the live snapshot already equals it
+ *   4. converts that v2 draft into the v3 model with migrate_v2_to_v3(): the
+ *      default theme and a home page with sections (docs/V3-CONTRACTS.md §7).
+ *      Only once: when the project already has pages, the v3 draft is left as
+ *      it is (edit it in the visual editor instead).
+ *   5. with --publish: validates the shape of build_content_v3(true) and stores
+ *      it as a `succeeded` publish run, unless the live snapshot already equals
+ *      it (compared without hidden sections, as get_published_content() serves it)
  *
  * The service-role key bypasses RLS. It is read from the environment only
  * (SUPABASE_SERVICE_ROLE_KEY in the shell, for this command only). It does not
@@ -31,6 +36,7 @@ import { extname, join } from 'node:path';
 import sharp from 'sharp';
 import { mediaKeys } from '../src/lib/content-source.ts';
 import { validateContent } from '../src/lib/validate.ts';
+import { validateSnapshotV3 } from '../src/lib/validate-v3.ts';
 
 const root = process.cwd();
 const contentDir = join(root, 'content');
@@ -234,13 +240,26 @@ if (featuredIds.length) {
 }
 console.log(`→ draft: site, ${site.contact.socials.length} socials, ${site.categories.length} categories, ${works.length} works, ${placements.length} placements, ${site.layout.sections.length} layout sections`);
 
-// 4. Publish -------------------------------------------------------------------------
+// 4. v3 model ----------------------------------------------------------------------
+
+const migrated = await rpc('migrate_v2_to_v3');
+console.log(migrated ? '→ v3: created the default theme and the home page from the v2 content' : '→ v3: pages already exist, v3 draft left unchanged');
+
+// 5. Publish -------------------------------------------------------------------------
 
 if (PUBLISH) {
-  const snapshot = await rpc('build_content', { p_published_only: true });
+  const snapshot = await rpc('build_content_v3', { p_published_only: true });
+  try {
+    // Shape only: media may exist only in Storage (uploaded in the editor), and
+    // snapshot_media_paths() already limits public keys to library files.
+    validateSnapshotV3(snapshot, () => true);
+  } catch (error) {
+    fail(`the v3 snapshot does not validate, nothing was published:\n${error.message}`);
+  }
   const live = await rpc('get_published_content');
   const canonical = (v) => JSON.stringify(v, (_k, x) => (x && typeof x === 'object' && !Array.isArray(x) ? Object.fromEntries(Object.entries(x).sort()) : x));
-  if (live && canonical(live) === canonical(snapshot)) {
+  const served = await rpc('snapshot_strip_hidden', { p_snapshot: snapshot });
+  if (live && canonical(live) === canonical(served)) {
     console.log('→ publish: the live snapshot already matches, nothing to do');
   } else {
     await rest('POST', 'publish_runs', '', {

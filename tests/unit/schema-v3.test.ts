@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_THEME_TOKENS,
   RESERVED_SLUGS,
+  SAFE_HREF,
   SECTION_VARIANTS,
   blockDraftSchema,
   linkSchema,
@@ -82,12 +83,21 @@ describe('rich text', () => {
     expect(richTextSchema.safeParse(value).success).toBe(true);
   });
 
-  it.each(['javascript:alert(1)', 'JAVASCRIPT:alert(1)', 'data:text/html,<script>', '//evil.example', 'vbscript:x', ' https://x.y'])(
+  it.each(['javascript:alert(1)', 'JAVASCRIPT:alert(1)', 'data:text/html,<script>', '//evil.example', '/\\evil.example', '/a\\b', 'vbscript:x', ' https://x.y'])(
     'rejects the link target %j',
     (href) => {
       expect(richTextSchema.safeParse(doc(para(text('x', [{ type: 'link', attrs: { href } }])))).success).toBe(false);
     },
   );
+
+  it('SAFE_HREF and public.is_safe_href() (SQL) agree', () => {
+    const pattern = /p ~ '([^']+)'/.exec(sql('20261110000400_v3_publish_followups.sql'))?.[1];
+    expect(pattern).toBeDefined();
+    const fromSql = new RegExp(pattern!.replaceAll('[:space:]', '\\s'));
+    const hrefs = ['https://x.y/a', 'http://x', 'mailto:a@b.c', 'tel:+1 (555) 010-0000', '/', '/commissions/', '/a?b=c#d', '#about',
+      '//evil.example', '/\\evil.example', '/a\\b', 'javascript:alert(1)', 'HTTPS://x.y', 'data:x', '#', 'ftp://x', ''];
+    for (const href of hrefs) expect([href, fromSql.test(href)]).toEqual([href, SAFE_HREF.test(href)]);
+  });
 
   it('rejects node types outside the subset (no raw HTML)', () => {
     expect(richTextSchema.safeParse(doc({ type: 'html', content: '<b>x</b>' })).success).toBe(false);

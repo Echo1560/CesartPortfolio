@@ -40,8 +40,12 @@ export const pageSlug = kebabId
   .max(100)
   .refine((s) => !(RESERVED_SLUGS as readonly string[]).includes(s), { message: 'is reserved for a site route' });
 
-/** Hrefs allowed in rich text and URL links: http(s), mailto, tel, site-relative path or #anchor. */
-const SAFE_HREF = /^(https?:\/\/[^\s]+|mailto:[^\s]+|tel:\+?[0-9 ()-]+|\/(?!\/)[^\s]*|#[A-Za-z0-9_-]+)$/;
+/**
+ * Hrefs allowed in rich text and URL links: http(s), mailto, tel, site-relative path or #anchor.
+ * A path may not start with `//` or `/\` and holds no backslash (browsers read both as another host).
+ * `public.is_safe_href()` (SQL) must match.
+ */
+export const SAFE_HREF = /^(https?:\/\/[^\s]+|mailto:[^\s]+|tel:\+?[0-9 ()-]+|\/(?![\/\\])[^\s\\]*|#[A-Za-z0-9_-]+)$/;
 export const safeHref = z
   .string()
   .max(500)

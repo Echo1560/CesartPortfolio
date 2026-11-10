@@ -220,6 +220,8 @@ When all eight pass, the site is live on v2. The `content/*.json` files stay in 
 
 ## Maintenance
 
+**Updating a live project: migrations first, then functions.** When an update brings new migrations and changed Edge Functions, run `npx supabase db push` before `npx supabase functions deploy` (the same commands in bash and PowerShell). For example, the v3 `track` function sends a page slug that only the new `record_event()` accepts. Deployed first, it would drop every stats event until the migration is applied, and only its logs would show it.
+
 **Delete old stats events.** Stats events pile up in the `events` table, and nothing deletes them on its own. To delete events older than 400 days, open the Supabase dashboard → **SQL Editor** and run:
 
 ```sql

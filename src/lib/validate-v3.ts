@@ -8,8 +8,9 @@
  */
 import type { z } from 'zod';
 import { ContentError } from './validate';
-import { snapshotV3Schema, type SnapshotSection, type SnapshotV3 } from './schema-v3';
+import { snapshotV3Schema, type SnapshotSection, type SnapshotV3, type Visibility } from './schema-v3';
 import type { Media } from './schema';
+import { hasVariants } from './media-variants';
 
 function formatPath(path: PropertyKey[]): string {
   return path.reduce<string>((acc, key) => (typeof key === 'number' ? `${acc}[${key}]` : acc ? `${acc}.${String(key)}` : String(key)), '');
@@ -60,11 +61,44 @@ export function snapshotMediaKeys(snapshot: SnapshotV3): string[] {
   return [...keys].sort();
 }
 
-/** Throws `ContentError` listing every problem. */
+interface Shown {
+  visibility: Visibility;
+  blocks?: { visibility: Visibility }[];
+}
+const shownSomewhere = (item: Shown) => item.visibility.desktop || item.visibility.tablet || item.visibility.mobile;
+
+/**
+ * The snapshot without the sections and blocks hidden on every device. Publish
+ * keeps them (with their `visibility`) so restoring a version brings them back;
+ * the build never renders them or needs their media (contract §5, `snapshot_strip_hidden()` in SQL).
+ */
+export function withoutHidden(snapshot: SnapshotV3): SnapshotV3 {
+  return {
+    ...snapshot,
+    pages: snapshot.pages.map((p) => ({
+      ...p,
+      sections: p.sections
+        .filter((s) => shownSomewhere(s as unknown as Shown))
+        .map((s): SnapshotSection => {
+          const blocks = (s as unknown as Shown).blocks;
+          return blocks ? ({ ...s, blocks: blocks.filter(shownSomewhere) } as SnapshotSection) : s;
+        }),
+    })),
+  };
+}
+
+/** Source keys of the animated GIF/WebP media in a snapshot (works and every section/block), which get video variants. */
+export function snapshotAnimatedKeys(snapshot: SnapshotV3): string[] {
+  const all: MediaLike[] = [...snapshot.pages.flatMap((p) => sectionMedia(p.sections))];
+  for (const w of snapshot.works) all.push(w.media, ...(w.gallery ?? []));
+  return [...new Set(all.filter((m) => hasVariants(m)).map((m) => m.src))].sort();
+}
+
+/** Throws `ContentError` listing every problem. Returns the snapshot as the build renders it (`withoutHidden`). */
 export function validateSnapshotV3(raw: unknown, mediaExists: (path: string) => boolean): SnapshotV3 {
   const result = snapshotV3Schema.safeParse(raw);
   if (!result.success) throw new ContentError(problemsOf(result.error));
-  const snapshot = result.data;
+  const snapshot = withoutHidden(result.data);
   const problems: string[] = [];
 
   const dupes = (values: string[]) => values.filter((v, i) => values.indexOf(v) !== i);

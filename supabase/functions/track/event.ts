@@ -16,6 +16,8 @@ export interface NormalisedEvent {
   p_referrer_host: string | null;
   p_device: Device;
   p_props: Record<string, string>;
+  /** Slug of the v3 page the event happened on, or null (work pages, old clients). */
+  p_page_slug: string | null;
 }
 
 const KEBAB = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -108,6 +110,12 @@ export function parseEvent(text: string, userAgent: string): NormalisedEvent {
   if (name === 'work_open' && slug === null) bad('work_open needs a slug');
   if (name === 'page_view' || name === 'contact_click') slug = null;
 
+  let page: string | null = null;
+  if (b.page !== undefined && b.page !== null) {
+    if (!isKebab(b.page, 100)) bad('invalid page');
+    page = b.page;
+  }
+
   const props: Record<string, string> = {};
   if (typeof b.props === 'object' && b.props !== null && !Array.isArray(b.props)) {
     for (const [key, check] of Object.entries(PROPS[name])) {
@@ -123,5 +131,6 @@ export function parseEvent(text: string, userAgent: string): NormalisedEvent {
     p_referrer_host: referrerHost(b.referrer),
     p_device: deviceClass(userAgent),
     p_props: props,
+    p_page_slug: page,
   };
 }
