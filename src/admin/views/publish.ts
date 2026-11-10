@@ -4,7 +4,7 @@ import { callFunction } from '../supabase';
 import type { ViewContext } from '../main';
 import { card } from './shared';
 
-interface Run {
+export interface Run {
   id: string;
   status: 'pending' | 'dispatched' | 'building' | 'succeeded' | 'failed';
   requested_at: string;
@@ -15,14 +15,14 @@ interface Run {
   error: string | null;
 }
 
-const LABEL: Record<Run['status'], string> = { pending: 'Queued', dispatched: 'Queued', building: 'Running', succeeded: 'Success', failed: 'Failed' };
+export const LABEL: Record<Run['status'], string> = { pending: 'Queued', dispatched: 'Queued', building: 'Running', succeeded: 'Success', failed: 'Failed' };
 const POLL_MS = 5000;
 const SITE_URL = `${location.origin}${import.meta.env.BASE_URL}`.replace(/\/+$/, '/');
 
 let timer: number | undefined;
 
-const inFlight = (r: Run | undefined) => r !== undefined && (r.status === 'pending' || r.status === 'dispatched' || r.status === 'building');
-const listRuns = async () => (await callFunction<{ runs: Run[] }>('publish-status', { method: 'GET', query: 'limit=10' })).runs;
+export const inFlight = (r: Run | undefined) => r !== undefined && (r.status === 'pending' || r.status === 'dispatched' || r.status === 'building');
+export const listRuns = async () => (await callFunction<{ runs: Run[] }>('publish-status', { method: 'GET', query: 'limit=10' })).runs;
 
 export async function renderPublish(el: HTMLElement, _ctx: ViewContext): Promise<void> {
   window.clearTimeout(timer);
