@@ -235,7 +235,8 @@ export async function renderEditor(el: HTMLElement, opts: { slug?: string; email
     switch (e.kind) {
       case 'content':
         paintBar();
-        if (e.source !== 'inline') canvas.refresh(e.source === 'history' || e.source === 'structure');
+        if (e.source === 'theme') canvas.refreshTheme();
+        else if (e.source !== 'inline') canvas.refresh(e.source === 'history' || e.source === 'structure');
         if (e.source === 'history' || e.source === 'structure') panel.render();
         break;
       case 'selection':

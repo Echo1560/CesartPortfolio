@@ -406,8 +406,20 @@ export class EditorStore {
       return;
     }
     this.setSave('saving');
+    // Content first, the theme last, and the theme error kept apart: a refused theme must not block content saves.
+    let failure: Error | null = null;
     try {
       await this.sync();
+    } catch (e) {
+      failure = e as Error;
+    }
+    try {
+      await this.syncTheme();
+    } catch (e) {
+      failure ??= e as Error;
+    }
+    try {
+      if (failure) throw failure;
       if (!this.isClean()) {
         this.setSave('dirty');
         this.schedule(SAVE_DELAY_MS);
@@ -428,7 +440,6 @@ export class EditorStore {
    */
   private async sync(): Promise<void> {
     const c = sb();
-    await this.syncTheme();
     const payloads = this.currentPayloads();
     const places = this.currentPlaces();
     const { removed, added, moved } = this.structure(places);

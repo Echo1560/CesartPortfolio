@@ -3,7 +3,7 @@
  * radius and motion. Every change goes through `store.editTheme`, which updates the
  * canvas live and autosaves to the `theme` row (docs/V3-CONTRACTS.md §4).
  */
-import { DEFAULT_THEME_TOKENS, FONT_IDS, type FontId, type Palette, type ThemeTokens } from '../../lib/schema-v3';
+import { FONT_IDS, type FontId, type Palette, type ThemeTokens } from '../../lib/schema-v3';
 import { contrastIssues } from '../../lib/contrast';
 import { presetById, THEME_PRESET_LIST } from '../../lib/theme-presets';
 import { checkbox, clear, field, h, select } from '../dom';
@@ -116,7 +116,7 @@ export function createStylesPanel(host: HTMLElement, store: EditorStore): Styles
     dark.input.addEventListener('change', () =>
       store.editTheme((theme) => {
         const c = theme.tokens.colors;
-        c.dark = dark.input.checked ? structuredClone(DEFAULT_THEME_TOKENS.colors.dark ?? c.light) : null;
+        c.dark = dark.input.checked ? structuredClone(presetById(theme.preset)?.tokens.colors.dark ?? c.light) : null;
       }),
     );
     dark.input.addEventListener('change', render);
