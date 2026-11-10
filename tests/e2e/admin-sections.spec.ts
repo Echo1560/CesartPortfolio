@@ -327,3 +327,18 @@ test('keyboard focus returns to the button that opened the section picker', asyn
   await expect(dialog).toBeHidden();
   await expect(add).toBeFocused();
 });
+
+test('"+" inserts at the right place and focus returns to the in-canvas button when a section is not drawn', async ({ page }) => {
+  const backend = live();
+  backend.tables['sections']!.find((r) => r['type'] === 'featured')!['show_on_desktop'] = false;
+  await mountAdmin(page, backend);
+  await expect(canvas(page).locator('.hero__title')).toBeVisible();
+  const plus = canvas(page).getByRole('button', { name: /^Add a section before gallery section/ });
+  await plus.focus();
+  await page.keyboard.press('Enter');
+  const dialog = page.getByRole('dialog', { name: 'Add a section' });
+  await expect(dialog).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  await expect(plus).toBeFocused();
+});
