@@ -158,6 +158,17 @@ export async function deletePage(state: State, pageId: string): Promise<void> {
   state.footer = footer;
 }
 
+/** Deletes a page and reloads the list. The reload also runs when only the link cleanup failed, because the page is already gone by then. */
+export async function deletePageAndReload(state: State, pageId: string, reload: () => Promise<void>): Promise<void> {
+  try {
+    await deletePage(state, pageId);
+  } catch (e) {
+    await reload().catch(() => undefined);
+    throw e;
+  }
+  await reload();
+}
+
 async function saveFooter(footer: SiteFooter): Promise<void> {
   const parsed = siteFooterSchema.safeParse(footer);
   if (!parsed.success) throw new Error(`Footer: ${parsed.error.issues.map((i) => `${i.path.join('.')} ${i.message}`).join('; ')}`);
@@ -194,9 +205,7 @@ function pagesCard(state: State, reload: () => Promise<void>): HTMLElement {
     remove.onclick = async () => {
       const yes = await confirmDialog(`Delete "${p.title}"?`, `This deletes the page and its ${count} section${count === 1 ? '' : 's'}. Links to it in the menu and footer are removed. Anything you published earlier stays in the version history. This cannot be undone.`, 'Delete page', remove);
       if (!yes) return;
-      await run(remove, async () => {
-        await deletePage(state, p.id);
-      }, 'Page deleted');
+      await runSave(remove, () => deletePageAndReload(state, p.id, reload), 'Page deleted');
     };
     const home = h('button', { type: 'button', class: 'btn btn--ghost', 'aria-label': `Make ${p.title} the home page` }, 'Make home');
     home.onclick = async () => {

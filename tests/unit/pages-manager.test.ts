@@ -25,7 +25,7 @@ function from(table: string) {
 }
 vi.mock('../../src/admin/supabase', async (orig) => ({ ...(await orig<object>()), sb: () => ({ from }) }));
 
-const { addNavItem, deletePage, duplicatePage, suggestSlug } = await import('../../src/admin/views/pages');
+const { addNavItem, deletePage, deletePageAndReload, duplicatePage, suggestSlug } = await import('../../src/admin/views/pages');
 
 const ID = (n: number) => `00000000-0000-4000-8000-00000000000${n}`;
 const KEEP = ID(1), GONE = ID(2), NEW = ID(3);
@@ -85,6 +85,21 @@ describe('deletePage', () => {
     expect(calls.some((c) => c.table === 'site')).toBe(false);
     expect(state.nav.items).toHaveLength(2);
     expect(state.footer.links).toHaveLength(1);
+  });
+});
+
+describe('deletePageAndReload', () => {
+  it('reloads once after a full success', async () => {
+    const reload = vi.fn(async () => {});
+    await deletePageAndReload(mkState(), GONE, reload);
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
+  it('reloads and still rejects when link cleanup fails after the delete', async () => {
+    const reload = vi.fn(async () => {});
+    failOn = (c) => c.table === 'site';
+    await expect(deletePageAndReload(mkState(), GONE, reload)).rejects.toThrow('boom');
+    expect(calls[0]).toMatchObject({ table: 'pages', op: 'delete' });
+    expect(reload).toHaveBeenCalledTimes(1);
   });
 });
 
