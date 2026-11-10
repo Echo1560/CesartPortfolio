@@ -117,6 +117,11 @@ export function mountCanvas(host: HTMLElement, store: EditorStore, hooks: Canvas
   let destroyed = false;
   let overlay: Overlay | null = null;
 
+  store.drawnSectionIds = () => {
+    const ids = store.page?.sections.map((s) => s.id) ?? [];
+    return ids.filter((id) => doc?.querySelector(`main [data-section-id="${id}"]`));
+  };
+
   const frame = document.createElement('iframe');
   frame.className = 'canvas__frame';
   frame.title = 'Page canvas';
@@ -330,6 +335,7 @@ export function mountCanvas(host: HTMLElement, store: EditorStore, hooks: Canvas
     blur: () => active?.el.blur(),
     destroy: () => {
       destroyed = true;
+      store.drawnSectionIds = null;
       overlay?.destroy();
       if (body) render(null, body);
       frame.remove();

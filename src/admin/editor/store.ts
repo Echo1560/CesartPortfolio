@@ -6,6 +6,7 @@
 import type { LooseBlock, LooseSection } from '../../components/render/types';
 import { explain, sb } from '../supabase';
 import { copyBlock, copySection } from './defaults';
+import { stepIndex } from './section-index';
 import { blockPayload, checkBlock, checkSection, clone, eachBlock, eachSection, sectionPayload, type EditorData, type EditorPage } from './model';
 
 export type Device = 'desktop' | 'tablet' | 'mobile';
@@ -34,6 +35,9 @@ export class EditorStore {
   notice = '';
   /** A short message about the last structural change ("Section deleted"), shown with an Undo button. */
   flash = '';
+
+  /** Ids of the sections the canvas draws on this device (set by the canvas); null = all of them. */
+  drawnSectionIds: (() => string[]) | null = null;
 
   private flashTimer: number | undefined;
   private placed = new Map<string, string>();
@@ -216,7 +220,12 @@ export class EditorStore {
       const block = this.findBlock(sel.sectionId, sel.blockId);
       const inColumn = (this.findSection(sel.sectionId)?.blocks ?? []).filter((b) => b.column === block?.column);
       if (block) this.moveBlock(sel.sectionId, sel.blockId, block.column, inColumn.findIndex((b) => b.id === sel.blockId) + step);
-    } else this.moveSection(sel.sectionId, (this.page?.sections.findIndex((x) => x.id === sel.sectionId) ?? 0) + step);
+    } else {
+      const ids = this.page?.sections.map((x) => x.id) ?? [];
+      // Step past the next drawn neighbour so the move is visible (same as the section toolbar buttons).
+      const to = stepIndex(ids, this.drawnSectionIds?.() ?? ids, sel.sectionId, step);
+      if (to !== null) this.moveSection(sel.sectionId, to);
+    }
   }
 
   duplicateBlock(sectionId: string, blockId: string): void {

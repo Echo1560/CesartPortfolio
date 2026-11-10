@@ -220,10 +220,8 @@ export function mountOverlay(doc: Document, store: EditorStore, hooks: OverlayHo
       plusAt(els.length, () => rectOf(last).top + rectOf(last).height, 'Add a section at the end');
     }
 
-    els.forEach((el, i) => {
+    els.forEach((el) => {
       const id = el.dataset['sectionId']!;
-      // Position in page.sections: `i` only counts the sections drawn on this device.
-      const at = page.sections.findIndex((s) => s.id === id);
       const up = stepIndex(ids, drawnIds, id, -1);
       const down = stepIndex(ids, drawnIds, id, 1);
       const section = store.findSection(id);
