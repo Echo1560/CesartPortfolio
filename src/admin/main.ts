@@ -8,6 +8,10 @@ import { renderWorks } from './views/works';
 import { renderLayout } from './views/layout';
 import { renderMedia } from './views/media';
 import { renderPreview } from './views/preview';
+import { renderPublish } from './views/publish';
+import { renderStats } from './views/stats';
+import { renderAccounts } from './views/accounts';
+import { renderActivity } from './views/activity';
 
 export interface ViewContext {
   draft: Draft;
@@ -21,6 +25,10 @@ const ROUTES: [id: string, label: string, render: (el: HTMLElement, ctx: ViewCon
   ['layout', 'Layout', renderLayout],
   ['media', 'Media library', renderMedia],
   ['preview', 'Preview', renderPreview],
+  ['publish', 'Publish', renderPublish],
+  ['stats', 'Stats', renderStats],
+  ['accounts', 'Accounts', renderAccounts],
+  ['activity', 'Activity', renderActivity],
 ];
 
 const root = document.getElementById('admin-root')!;
