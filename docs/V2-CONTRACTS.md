@@ -2,6 +2,8 @@
 
 The shared contracts for the v2 backend (TITA-72). Every v2 child issue builds against this file. If you need to change a contract, change it here in your PR and note it on TITA-72.
 
+**v3:** pages, sections, blocks, the theme, `site.nav`/`site.footer`, snapshot v3 and version history are specified in [`V3-CONTRACTS.md`](V3-CONTRACTS.md). Where the two disagree (`create_publish_run()` now freezes snapshot v3; `activity_log.action` gains `restore`), V3 wins.
+
 `src/lib/schema.ts` stays the content contract: the database produces exactly that JSON, and the build still runs it through `validateContent`.
 
 Migrations: `supabase/migrations/`. Tests: `supabase/tests/database/` (pgTAP) and `scripts/db-api-smoke.mjs` (API). Rollbacks: `supabase/rollbacks/`.

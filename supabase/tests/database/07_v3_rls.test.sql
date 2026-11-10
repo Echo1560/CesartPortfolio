@@ -5,7 +5,7 @@
 -- Users come from seed.sql: Cesart (editor), Echo 1560 (editor), Visitor (no editor row).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(43);
+select plan(47);
 
 -- ===========================================================================
 -- anon
@@ -42,6 +42,7 @@ select lives_ok($$update public.sections set variant = 'overlay' where type = 'h
 select lives_ok($$update public.theme set preset = 'hacked'$$, 'non-editor theme update runs');
 select lives_ok($$delete from public.blocks$$, 'non-editor block delete runs');
 select throws_ok($$select public.restore_published_snapshot((select id from public.publish_runs limit 1))$$, '42501', null, 'non-editor cannot restore a version');
+select throws_ok($$select public.set_home_page(gen_random_uuid())$$, '42501', null, 'non-editor cannot change the home page');
 
 reset role;
 select is((select variant from public.sections where type = 'hero'), 'default', 'the non-editor section update changed nothing');
@@ -81,6 +82,10 @@ select results_eq(
   $$values ('11111111-1111-4111-8111-111111111111'::uuid, 'update'::text)$$,
   'the theme change is in the activity log with its actor'
 );
+
+select lives_ok($$select public.set_home_page('00000000-0000-4000-8000-0000000000b1')$$, 'editor can make another page the home page');
+select is((select slug::text from public.pages where is_home), 'commissions', 'the home flag moved in one call');
+select lives_ok($$select public.set_home_page((select id from public.pages where slug = 'home'))$$, 'and move it back');
 
 -- Drafts stay private until Publish.
 select is(jsonb_array_length(public.get_published_content() -> 'pages'), 1, 'a new page is not live before Publish');

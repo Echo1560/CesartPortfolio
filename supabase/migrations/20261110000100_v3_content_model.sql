@@ -111,6 +111,26 @@ create constraint trigger pages_one_home_at_commit
   deferrable initially deferred
   for each row execute function public.assert_one_home_page();
 
+-- Makes a page the home page (and publishes it) in one call, since PostgREST
+-- cannot run the two updates in one transaction. SECURITY INVOKER: RLS applies.
+-- Errors: 42501 not an editor, PT404 unknown page.
+create function public.set_home_page(p_page_id uuid)
+returns void
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if not public.is_editor() then
+    raise exception 'only editors can change the home page' using errcode = '42501';
+  end if;
+  if not exists (select 1 from public.pages where id = p_page_id) then
+    raise exception 'page % not found', p_page_id using errcode = 'PT404';
+  end if;
+  update public.pages set is_home = false where is_home and id <> p_page_id;
+  update public.pages set is_home = true, status = 'published' where id = p_page_id and not is_home;
+end;
+$$;
+
 -- ---------------------------------------------------------------------------
 -- Sections
 -- ---------------------------------------------------------------------------
@@ -354,6 +374,7 @@ revoke all on public.pages, public.sections, public.blocks, public.theme from an
 grant select, insert, update, delete on public.pages, public.sections, public.blocks, public.theme to authenticated;
 
 revoke execute on function
+  public.set_home_page(uuid),
   public.protect_home_page(),
   public.assert_one_home_page(),
   public.section_block_columns(public.section_type, jsonb),
@@ -363,7 +384,7 @@ revoke execute on function
   public.check_json_media_refs(),
   public.protect_media_in_use()
 from public, anon, authenticated;
-grant execute on function public.section_block_columns(public.section_type, jsonb), public.json_media_ids(jsonb) to authenticated;
+grant execute on function public.set_home_page(uuid), public.section_block_columns(public.section_type, jsonb), public.json_media_ids(jsonb) to authenticated;
 
 do $$
 declare
