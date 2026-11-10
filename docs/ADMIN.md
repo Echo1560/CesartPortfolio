@@ -141,6 +141,8 @@ Below that: **Visits over time** (click **Show as a table** for the exact number
 
 Search engines and other robots are left out of the numbers, except in Devices, where they show as "bot". The stats are privacy-friendly: there are no cookies, and visitors cannot be identified or followed from one day to the next.
 
+Events older than 400 days are deleted by hand, about once a year. Echo runs it as described in [GO-LIVE.md → Maintenance](GO-LIVE.md#maintenance).
+
 ## Inviting an editor
 
 ![Accounts page](images/admin/accounts.png)

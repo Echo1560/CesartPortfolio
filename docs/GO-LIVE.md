@@ -190,6 +190,20 @@ Check under **Accounts** in the dashboard that both people show as **owner · Ac
 
 When all eight pass, the site is live on v2. The `content/*.json` files stay in the repo as the v1 fallback and the source of the test fixtures. From now on, content is edited in the dashboard, not in those files.
 
+## Maintenance
+
+**Delete old stats events.** Stats events pile up in the `events` table, and nothing deletes them on its own. To delete events older than 400 days, open the Supabase dashboard → **SQL Editor** and run:
+
+```sql
+select purge_old_events();
+```
+
+It answers with the number of rows it deleted. To keep a different window, pass an interval, for example `select purge_old_events('180 days');`. Stats can only show the window you keep, and the dashboard's longest range is 400 days.
+
+The function is service-role only: visitors and dashboard users cannot call it. The SQL editor already runs with those rights, so no key is needed there.
+
+When to run it: once a year is enough at this site's traffic. Run it sooner if **Project Settings → Usage** shows the database nearing the free-plan limit (500 MB).
+
 ## If something goes wrong
 
 - **Deploy fails with `Supabase secrets missing`:** a step 6 secret is missing or misspelled.
