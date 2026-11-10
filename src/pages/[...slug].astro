@@ -1,0 +1,27 @@
+---
+import type { GetStaticPaths } from 'astro';
+import Base from '../layouts/Base.astro';
+import { PageRoot, createRenderContext } from '../components/render/Shell';
+import { url } from '../components/url';
+import { getSnapshot } from '../lib/content';
+import { resolvePageMedia } from '../lib/render-media';
+import { pageSeo, publishedPages } from '../lib/render-model';
+
+// One route per published page except the home page (served by index.astro).
+// Draft and hidden pages are not in the snapshot, and are filtered here again.
+export const getStaticPaths = (async () => {
+  const snapshot = await getSnapshot();
+  return publishedPages(snapshot)
+    .filter((p) => !p.isHome)
+    .map((page) => ({ params: { slug: page.slug }, props: { page } }));
+}) satisfies GetStaticPaths;
+
+const { page } = Astro.props;
+const snapshot = await getSnapshot();
+const seo = pageSeo(snapshot, page);
+const ctx = createRenderContext(snapshot, url(), await resolvePageMedia(page, snapshot.works), page);
+---
+
+<Base title={seo.title} description={seo.description} image={seo.image} page={page}>
+  <PageRoot ctx={ctx} />
+</Base>

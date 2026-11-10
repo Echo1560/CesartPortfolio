@@ -1,9 +1,9 @@
 ---
 import Base from '../layouts/Base.astro';
-import { getSite } from '../lib/content';
+import { getSnapshot } from '../lib/content';
 import { url } from '../components/url';
 
-const site = await getSite();
+const site = (await getSnapshot()).site;
 ---
 
 <Base title={`Page not found — ${site.meta.author}`}>

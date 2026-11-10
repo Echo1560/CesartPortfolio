@@ -20,10 +20,16 @@ export interface SupabaseConfig {
   anonKey: string;
 }
 
-/** Raw `{site, works}`, ready for `validateContent`. */
+/**
+ * Raw `{site, works}`, ready for `validateContent`. A v3 snapshot (docs/V3-CONTRACTS.md §5)
+ * also carries `version`, `pages` and `theme`, which pass through untouched for `getSnapshot()`.
+ */
 export interface ContentInput {
   site: unknown;
   works: unknown;
+  version?: unknown;
+  pages?: unknown;
+  theme?: unknown;
 }
 
 type Env = Record<string, string | undefined>;
@@ -98,14 +104,14 @@ export function mapSnapshot(snapshot: unknown): ContentInput {
   if (typeof snapshot !== 'object' || Array.isArray(snapshot)) {
     throw new ContentSourceError(`get_published_content() returned ${Array.isArray(snapshot) ? 'an array' : typeof snapshot}, expected {site, works}.`);
   }
-  const { site, works } = snapshot as Record<string, unknown>;
+  const { site, works, version, pages, theme } = snapshot as Record<string, unknown>;
   if (typeof site !== 'object' || site === null || Array.isArray(site)) {
     throw new ContentSourceError('The published snapshot has no "site" object.');
   }
   if (!Array.isArray(works)) {
     throw new ContentSourceError('The published snapshot has no "works" array.');
   }
-  return { site, works };
+  return { site, works, ...(version === undefined ? {} : { version, pages, theme }) };
 }
 
 /** Fetches the live snapshot with the anon key. Throws `ContentSourceError` on any failure. */
@@ -250,7 +256,7 @@ interface SnapshotFile extends ContentInput {
  */
 export async function writeSnapshot(root: string, config: SupabaseConfig, input: ContentInput): Promise<void> {
   const file = join(root, SNAPSHOT_FILE);
-  const body: SnapshotFile = { source: 'supabase', url: config.url, fetchedAt: new Date().toISOString(), site: input.site, works: input.works };
+  const body: SnapshotFile = { source: 'supabase', url: config.url, fetchedAt: new Date().toISOString(), ...input };
   await mkdir(dirname(file), { recursive: true });
   await writeFile(file, JSON.stringify(body));
 }
@@ -276,7 +282,7 @@ export async function readSnapshot(root: string, config: SupabaseConfig): Promis
       `${SNAPSHOT_FILE} was prepared for ${parsed.url ?? 'another source'}, not ${config.url}. Run \`npm run content:prepare\` again.`,
     );
   }
-  return mapSnapshot({ site: parsed.site, works: parsed.works });
+  return mapSnapshot({ site: parsed.site, works: parsed.works, version: parsed.version, pages: parsed.pages, theme: parsed.theme });
 }
 
 /** `content/media/` under the project root. */

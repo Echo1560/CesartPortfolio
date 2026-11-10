@@ -18,6 +18,52 @@ export const ANIMATED_WORKS = {
 /** Slug and media file of the work added with content only (no code change). */
 export const ADDED_WORK = { id: 'e2e-added-work', slug: 'e2e-added-work', title: 'E2E Added Work' };
 
+/** Second page: heading and rich-text blocks, one of them with markup-looking text that must be escaped. */
+export const JOURNAL_PAGE = {
+  id: '5a1c2b3d-0000-4000-8000-0000000000a1',
+  slug: 'journal',
+  title: 'Journal',
+  status: 'published',
+  isHome: false,
+  seo: { title: 'Journal — E2E', description: 'E2E journal page description' },
+  sections: [
+    {
+      id: '5a1c2b3d-0000-4000-8000-0000000000b1',
+      type: 'text',
+      variant: 'default',
+      settings: { anchor: 'notes' },
+      content: {},
+      visibility: { desktop: true, tablet: true, mobile: true },
+      blocks: [
+        { id: '5a1c2b3d-0000-4000-8000-0000000000c1', type: 'heading', column: 0, settings: {}, content: { level: 1, text: [{ type: 'text', text: 'Journal heading' }] }, visibility: { desktop: true, tablet: true, mobile: true } },
+        {
+          id: '5a1c2b3d-0000-4000-8000-0000000000c2',
+          type: 'paragraph',
+          column: 0,
+          settings: {},
+          content: {
+            text: {
+              type: 'doc',
+              content: [
+                {
+                  type: 'paragraph',
+                  content: [
+                    { type: 'text', text: 'Bold ', marks: [{ type: 'bold' }] },
+                    { type: 'text', text: '<script>window.__pwned = true</script> & friends' },
+                  ],
+                },
+              ],
+            },
+          },
+          visibility: { desktop: true, tablet: true, mobile: true },
+        },
+      ],
+    },
+  ],
+};
+
+export const HIDDEN_PAGE = { ...JOURNAL_PAGE, id: '5a1c2b3d-0000-4000-8000-0000000000a2', slug: 'secret', title: 'Secret', status: 'hidden', sections: [] };
+
 export function buildFixture() {
   rmSync(FIXTURE_ROOT, { recursive: true, force: true });
   mkdirSync(FIXTURE_ROOT, { recursive: true });
@@ -26,15 +72,15 @@ export function buildFixture() {
   }
   symlinkSync(join(root, 'node_modules'), join(FIXTURE_ROOT, 'node_modules'), 'junction');
 
-  const siteFile = join(FIXTURE_ROOT, 'content', 'site.json');
-  const worksFile = join(FIXTURE_ROOT, 'content', 'works.json');
-  const site = JSON.parse(readFileSync(siteFile, 'utf8'));
-  const works = JSON.parse(readFileSync(worksFile, 'utf8'));
+  // The public site renders content/snapshot-v3.json (the v3 snapshot). Edit that copy only.
+  const snapshotFile = join(FIXTURE_ROOT, 'content', 'snapshot-v3.json');
+  const snapshot = JSON.parse(readFileSync(snapshotFile, 'utf8'));
+  const works = snapshot.works;
 
   // Layout: contact first, about hidden, everything else after.
-  const byId = Object.fromEntries(site.layout.sections.map((s) => [s.id, s]));
-  site.layout.sections = [byId.contact, byId.hero, { ...byId.about, visible: false }, byId.grid, byId.featured];
-  writeFileSync(siteFile, JSON.stringify(site, null, 2));
+  const home = snapshot.pages.find((p) => p.isHome);
+  const byType = (type) => home.sections.find((s) => s.type === type);
+  home.sections = [byType('contact'), byType('hero'), byType('gallery'), byType('cta'), byType('featured')];
 
   // New work: one JSON entry plus a media file dropped into content/media.
   const template = works[0];
@@ -68,7 +114,11 @@ export function buildFixture() {
       media: { type: 'animated', src, poster: 'e2e-anim-poster.jpg', alt: `${title} loop`, width: 64, height: 64, loop: true },
     });
   });
-  writeFileSync(worksFile, JSON.stringify(works, null, 2));
+
+  // A second page, in the nav, plus a hidden page that must not be emitted.
+  snapshot.pages.push(JOURNAL_PAGE, HIDDEN_PAGE);
+  snapshot.site.nav.items.push({ id: 'journal', label: 'Journal', link: { kind: 'page', pageId: JOURNAL_PAGE.id } });
+  writeFileSync(snapshotFile, JSON.stringify(snapshot, null, 2));
 
   const astro = join(root, 'node_modules', 'astro', 'bin', 'astro.mjs');
   if (!existsSync(astro)) throw new Error(`astro CLI not found at ${astro}`);
