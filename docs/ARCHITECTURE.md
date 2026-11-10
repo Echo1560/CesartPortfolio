@@ -1,17 +1,40 @@
 # Architecture
 
-The site is a static Astro build. Every word, image and section on the page comes from the `content/` folder. Pages and components never read those files directly. They go through a small data layer in `src/lib/`. That boundary is what lets a future backend and artist dashboard replace the content source without rewriting the UI.
+The public site is a static Astro build on GitHub Pages. Every word, image and section on it comes from one validated `Content` object (`src/lib/schema.ts`). Pages and components never read content directly: they go through the data layer in `src/lib/`. Since v2 that object comes from Supabase. The artist edits it in an in-site dashboard and freezes it with a Publish step. The v1 `content/` folder is still a supported source for dev, tests and the fallback build.
+
+The exact contracts (tables, mapping to `schema.ts`, storage, RPCs, Edge Functions, events, the `load()` switch) are in [`V2-CONTRACTS.md`](V2-CONTRACTS.md). This file explains how the pieces fit together. Go-live steps: [`GO-LIVE.md`](GO-LIVE.md). Editor guide: [`ADMIN.md`](ADMIN.md).
+
+## Two data flows
+
+**Build time (public site).** While a visitor browses, nothing on the public site talks to the database except the analytics beacon.
 
 ```
-content/site.json  ┐
-content/works.json ├─► src/lib/validate.ts ─► src/lib/content.ts ─► pages / components
-content/media/**   ┘     (zod + cross-checks)    (getSite, getWorks…)        │
-                                                                            ▼
-                                     src/lib/media.ts (resolveMedia) ◄──────┘
-                                     src/lib/track.ts (track)  ◄── client scripts
+CONTENT_SOURCE=local (default)          CONTENT_SOURCE=supabase  (scripts/prepare-content.ts, before astro build)
+content/site.json  ┐                    get_published_content()  (anon key, one request)
+content/works.json ├──────┐             + download every object it references from the `media` bucket → content/media/
+content/media/**   ┘      │             → generated/content.json
+                          ▼                          │
+               src/lib/validate.ts ◄─────────────────┘
+                          ▼
+               src/lib/content.ts (getSite, getWorks…) ─► pages / components ─► dist/ ─► GitHub Pages
+                                                              │
+               src/lib/media.ts (resolveMedia) ◄──────────────┤
+               src/lib/track.ts (track) ◄── client scripts ───┘──► POST /functions/v1/track (in the visitor's browser)
 ```
 
-> **v2 (backend + dashboard):** the database schema, how rows map to the types below, storage, Edge Functions, event payloads and the `load()` source switch are specified in [`V2-CONTRACTS.md`](V2-CONTRACTS.md).
+**Admin runtime (dashboard).** `/CesartPortfolio/admin/` is a static page. Its script (`src/admin/`) runs in the editor's browser with the public anon key and the editor's session.
+
+```
+editor's browser ── supabase-js (anon key + editor JWT) ──► PostgREST: draft tables, RPCs, stats      ┐
+                                                         ──► Storage: `media` bucket (uploads)         ├ every call checked by RLS
+                                                         ──► Edge Functions: publish, publish-status,  │
+                                                             invite-editor, remove-editor             ┘
+Publish ─► `publish` ─► create_publish_run(): build_content(true) frozen into publish_runs.snapshot
+                    └─► GitHub repository_dispatch `publish` ─► deploy.yml builds with CONTENT_SOURCE=supabase
+                                                               └─► reports building / succeeded / failed to `publish-status`
+```
+
+Draft and live content are separate. Editors only write **draft tables**. The site only reads the **snapshot** of the newest publish run that did not fail (`get_published_content()`). So an edit stays private until Publish, a code push in between rebuilds the same live snapshot, and a failed publish leaves the site on the previous good version (contracts §1).
 
 ## Content schema (`src/lib/schema.ts`)
 
@@ -103,20 +126,60 @@ UI code calls it at the moments the artist will want metrics for. It is the only
 
 In v1 it did nothing. Since v2 it sends one `navigator.sendBeacon` (`text/plain` JSON) to the `track` Edge Function at `{PUBLIC_SUPABASE_URL}/functions/v1/track`, with no cookies and no storage. It stays a no-op when `PUBLIC_SUPABASE_URL` is unset (local dev, tests) and on the `/admin` pages. See `docs/V2-CONTRACTS.md` §6–7 and `supabase/functions/README.md`.
 
-## How a backend and dashboard replace each piece
+## Access model (Row Level Security)
 
-The UI only depends on the function signatures and types above. Each piece can be swapped on its own:
+All authorization lives in Postgres (`supabase/migrations/20261025000500_rls.sql` and `…0600_storage.sql`). The anon key in the site and the dashboard bundle is public by design. It can only do what the policies allow.
 
-| Piece | v1 | With a backend |
+| Caller | Can |
+|---|---|
+| anon (visitors, the build) | execute `get_published_content()`, and read Storage objects whose key is in the live snapshot (`is_published_media`). No table access at all. |
+| signed in, not an editor | nothing beyond anon. The dashboard signs them out. |
+| active editor (`is_editor()`) | read and write the draft tables, upload to and delete from the `media` bucket, preview (`build_content(false)`), `create_publish_run()`, read stats, the activity log and the editor list, and change their own display name. |
+| active owner (`is_owner()`) | everything an editor can, plus `set_editor_disabled`, `remove_editor` and inviting editors. Never on themselves, and never on the last active owner. |
+| service role | only inside Edge Functions (after they have verified the caller) and the one-off `npm run db:import`. Never in the site build, the bundle or GitHub. |
+
+Every editable table has `updated_at` / `updated_by` and triggers that write `activity_log`, which the dashboard shows. Grants are revoked by default, so a new table or function stays unreachable until a migration grants it. `supabase/tests/database/00_structure.test.sql` fails if a table lacks RLS. The other pgTAP tests in `supabase/tests/database/` cover the rows of the table above.
+
+## Edge Functions (`supabase/functions/`)
+
+These Deno functions do what the browser must not do with its own rights: hold a secret, use the service role, or call GitHub. The gateway JWT check is off. Each function verifies the caller's JWT with `auth.getUser()` and checks `is_editor()` / `is_owner()` **with that JWT** before anything else, so the database applies the same rules a second time.
+
+| Function | Caller | Does |
 |---|---|---|
-| Content source | `content/*.json` imported in `content.ts → load()` | `load()` fetches `GET /api/site` and `GET /api/works` at build time. The response is still checked with `validateContent`, so the API contract is `schema.ts`. A dashboard save triggers a Pages rebuild (`repository_dispatch` or a webhook). |
-| Schema | zod in `schema.ts` | The same schemas are shared with the API, or exported as JSON Schema with `z.toJSONSchema()` for a non-TypeScript backend and the dashboard forms. |
-| Media | Files in `content/media/`, optimised by Astro at build | Uploads go to object storage or a CDN. `resolveMedia` maps `src` to CDN URLs and builds the srcset from the CDN's resize parameters. `media.src` stays a path or key. |
-| Layout | `site.json → layout` | Edited in the dashboard (reorder, toggle, pick featured works). Same shape, served by `getLayout()`. |
-| Metrics | `track()` no-op | `track()` sends `navigator.sendBeacon('/api/events', …)` to the artist's own endpoint, without cookies. The dashboard reads the aggregates. Call sites do not change. |
-| Live data (optional) | Fully static | Astro can switch individual routes to on-demand rendering with an adapter. The data layer API stays the same. |
+| `track` | public. CORS origins: `https://echo1560.github.io`, `http://localhost:4321`, `http://127.0.0.1:4321` | validates and normalises an analytics event, hashes the visitor, calls `record_event()` |
+| `publish` | editor | `create_publish_run()` as the caller, then `repository_dispatch` with `GITHUB_DISPATCH_TOKEN` |
+| `publish-status` | editor (GET) / deploy workflow with `PUBLISH_STATUS_TOKEN` (POST) | lists runs / records `building`, `succeeded` or `failed` |
+| `invite-editor` | owner | `auth.admin.inviteUserByEmail` (link to `ADMIN_REDIRECT_URL`), then `register_invited_editor()` |
+| `remove-editor` | owner | `remove_editor()` as the caller, then deletes the auth user only if that succeeded |
 
-Rules to keep the swap cheap: no component imports `content/*.json`, no component builds media URLs by hand, and no analytics code outside `track.ts`.
+Payloads and error codes are in `supabase/functions/README.md`. Secrets: `GITHUB_DISPATCH_TOKEN`, `PUBLISH_STATUS_TOKEN` and `EVENTS_HASH_SECRET`. Optional settings: `ADMIN_REDIRECT_URL`, `GITHUB_REPOSITORY`, and `GITHUB_API_URL` (tests only). All of them are set with `supabase secrets set` (`GO-LIVE.md` step 5).
+
+## Media pipeline
+
+1. **Upload (dashboard).** The browser checks the type, the extension and the 25 MiB limit. It uploads the file to the private `media` bucket as `uploads/<uuid>.<ext>` and inserts a `media` row. A GIF or animated WebP gets kind `animated`. Replacing a file uploads a new key, so a published URL never changes content. Draft uploads are never public: the preview shows them through signed URLs.
+2. **Publish.** The snapshot lists every key it uses (`publish_runs.media_paths`). Only those objects become readable by anon.
+3. **Build.** `content:prepare` downloads exactly those objects into `content/media/` with the anon key. It then generates WebM, MP4 and a poster for every animated file (see "Animated variants" above). In CI, `MEDIA_VARIANTS=required` fails the build without ffmpeg.
+4. **Serve.** `media.ts` turns everything into hashed files under `/CesartPortfolio/_astro/`. Visitors download media from GitHub Pages only, never from Supabase, so their traffic does not count against the free plan's egress.
+
+## Analytics
+
+`track()` is the only analytics code. It sends a `text/plain` beacon, with no cookies and no storage, to the `track` function. The function keeps only the event name, path, work slug, referrer host, a device class and a visitor hash. The hash is `HMAC(daily salt, ip|ua)`. The salt is derived per UTC day from `EVENTS_HASH_SECRET` and never stored, so a visitor cannot be followed across days. Raw IPs and User-Agents are never stored. `record_event()` rate-limits (60 events per visitor per minute, 1200 site-wide) and marks bots. The dashboard reads aggregates only, through the editor-only `stats_*` RPCs. Contract: §7.
+
+`purge_old_events()` deletes events older than 400 days. It is service-role only, and nothing schedules it yet: at this site's traffic the free-plan database will not fill up for years. If it ever matters, run it from the SQL editor.
+
+## Deploy, keep-alive and CI
+
+- **`deploy.yml`** runs on a push to `main`, on `repository_dispatch: publish` and manually. With the Supabase secrets set, it builds with `CONTENT_SOURCE=supabase` and fails loudly when Supabase is unreachable or nothing is published. A push without the secrets builds the v1 content with a warning. For a publish, it reports progress to `publish-status`. After the build, `check:bundle` fails if `dist/` contains a service-role JWT, a secret key or a token.
+- **`keep-alive.yml`** calls `get_published_content()` with the anon key every 3 days, so the free hosted project is not paused after a week without traffic. It does nothing until the secrets are set.
+- **`ci.yml`** runs the unit tests, the build, e2e and Lighthouse. It also runs the database job (pgTAP RLS and storage tests, API checks, parity), the Edge Function tests (GitHub mocked) and gitleaks.
+
+Rules that keep this cheap to change:
+
+- No component imports `content/*.json`.
+- No component builds media URLs by hand.
+- No analytics code outside `track.ts`.
+- No service-role key outside Edge Functions and the import script.
+- Authorization lives only in RLS.
 
 ## Placeholder media
 

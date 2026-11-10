@@ -9,6 +9,7 @@ body.admin { background: var(--color-bg); color: var(--color-text); min-height: 
 
 .stack { display: grid; gap: var(--space-4); }
 .row { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: end; }
+.row[hidden] { display: none; }
 .row > .field { flex: 1 1 10rem; }
 
 .bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4); padding: var(--space-3) var(--gutter); background: var(--color-surface); border-bottom: 1px solid var(--color-border); }
@@ -94,7 +95,7 @@ body.admin { background: var(--color-bg); color: var(--color-text); min-height: 
 .data th, .data td { padding: var(--space-2); border-bottom: 1px solid var(--color-border); text-align: left; font-weight: normal; }
 .data .num { text-align: right; white-space: nowrap; }
 .data .bar-cell { width: 40%; }
-.bar { display: block; height: 0.6rem; background: var(--color-text); border-radius: var(--radius-pill); }
+.data .bar { display: block; height: 0.6rem; background: var(--color-text); border-radius: var(--radius-pill); }
 .chart { width: 100%; height: auto; max-height: 14rem; }
 .chart__bar { fill: var(--color-text); }
 .chart__axis { stroke: var(--color-border); }
