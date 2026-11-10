@@ -103,6 +103,27 @@ Content is loaded and validated once per build and then cached.
 
 **Animated variants.** `scripts/prepare-content.ts` converts every `animated` GIF/WebP with ffmpeg (`ffmpeg-static`, else PATH) into `generated/media/<key>.webm` (VP9), `<key>.mp4` (H.264, yuv420p, `+faststart`) and `<key>.poster.jpg`, all without audio and flattened onto the page background. Outputs are cached in `node_modules/.cache/cesart-media-variants/` by a hash of the source bytes and encoder settings, so rebuilds only encode new files. `media.ts` finds them by name (`src/lib/media-variants.ts`). `MEDIA_VARIANTS=auto|required|off` controls what happens without ffmpeg (`required` is the default under CI). `npm run dev` does not run this step, so run `npm run content:prepare` once to see variants in dev.
 
+## v3 renderer (pages, sections, theme)
+
+The public site renders the v3 snapshot ([V3-CONTRACTS.md](V3-CONTRACTS.md) §5), not the v2 layout config.
+
+| Piece | Where |
+|---|---|
+| Snapshot loader | `getSnapshot()` in `src/lib/content.ts`. Local source: `content/snapshot-v3.json` (the migrated v2 content, validated by `validateSnapshotV3`). Supabase source: the prepared `generated/content.json`, which must be a v3 snapshot. |
+| Shared components | `src/components/render/` (Preact). One component per section type (variants as classes), `blocks/Blocks.tsx`, `RichText.tsx`, `MediaView.tsx`, `WorkTile`/`WorkDetail`/`Lightbox`, `Shell.tsx` (entry points `PageRoot`, `HeaderRoot`, `FooterRoot`, `WorkRoot`). |
+| Render context | `context.ts`: site, pages, works and a media lookup. Components read only this, never content files. The editor (stage 3) supplies the same context with draft data. |
+| Pure helpers | `src/lib/render-model.ts` (links, work selection, visibility, page SEO), `theme-css.ts` (tokens to CSS), `sitemap.ts`. |
+| Media | `render-media.ts` resolves every media a page uses through `media.ts` before rendering, so components stay synchronous. |
+| Routes | `pages/index.astro` (the home page, whatever its slug), `pages/[...slug].astro` (other published pages), `pages/work/[slug].astro`, `pages/sitemap.xml.ts`, `pages/assets/fonts/[file].woff2.ts`. |
+| Styles | `styles/site.css` (components), `tokens.css` (defaults and fixed tokens), the theme as an inline `<style id="theme-css">` (`html:root`, so it wins over `tokens.css`). |
+
+- **No visitor JS.** Components render with Astro and no `client:*` directive. The lightbox, filters, reveal and media scripts stay vanilla (`src/scripts/`) and find their markup by `data-*` attributes. The `@astrojs/preact` client files in `dist/_astro/` are not referenced by any public page.
+- **Rich text** is built from JSON nodes, escaped by Preact, and every href is re-checked (`safeUrl`). There is no `set:html` for content. The only `set:html` is the theme `<style>`, whose CSS `themeToCss` builds from validated enums, numbers and `#rrggbb` colours.
+- **Visibility** is CSS (`hide-desktop`, `hide-tablet`, `hide-mobile`); sections hidden on every device are dropped.
+- **Missing references** (a nav link to a page that is not published, an unknown `workId`) are skipped, not errors.
+- **Fonts** come from `@fontsource/*` and are copied to `assets/fonts/` only when the theme uses them. The default theme ships none.
+- **Widths:** a section with no `width` keeps the v2 container (same as `wide`).
+
 ## Layout config
 
 `site.json → layout.sections` is an ordered list. The home page renders the sections in that order and skips any with `visible: false`.

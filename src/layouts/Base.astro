@@ -1,28 +1,34 @@
 ---
 import '../styles/global.css';
-import { getSite } from '../lib/content';
+import '../styles/site.css';
+import { getSnapshot } from '../lib/content';
+import { themeFontCss } from '../lib/fonts';
 import { resolveMediaUrl } from '../lib/media';
+import { themeToCss } from '../lib/theme-css';
+import type { SnapshotPage } from '../lib/schema-v3';
+import { createRenderContext, FooterRoot, HeaderRoot } from '../components/render/Shell';
 import { url } from '../components/url';
-import Header from '../components/Header.astro';
-import Footer from '../components/Footer.astro';
 
 interface Props {
   title?: string;
   description?: string;
-  /** Path relative to `content/media/`. Defaults to `meta.ogImage`. */
+  /** Bucket key (path relative to `content/media/`). Defaults to `meta.ogImage`. */
   image?: string;
   ogType?: 'website' | 'article';
-  home?: boolean;
+  /** The page being rendered; undefined for work pages. Lets the header mark the current page and use same-page anchors. */
+  page?: SnapshotPage;
   /** Work slug, set on detail pages for tracking. */
   workSlug?: string;
 }
 
-const site = await getSite();
-const { meta } = site;
-const { title = meta.title, description = meta.description, image = meta.ogImage, ogType = 'website', home = false, workSlug } = Astro.props;
+const snapshot = await getSnapshot();
+const { meta } = snapshot.site;
+const { title = meta.title, description = meta.description, image = meta.ogImage, ogType = 'website', page, workSlug } = Astro.props;
 const canonical = new URL(Astro.url.pathname, Astro.site).href;
 const ogImage = new URL(await resolveMediaUrl(image), Astro.site).href;
-const visible = site.layout.sections.filter((s) => s.visible).map((s) => s.id);
+const ctx = createRenderContext(snapshot, url(), new Map(), page);
+// The theme is validated by themeToCss (enums, numbers and #rrggbb colours only), so the CSS is safe to inline.
+const themeCss = themeFontCss(snapshot.theme.tokens, url()) + themeToCss(snapshot.theme.tokens);
 ---
 
 <!doctype html>
@@ -45,17 +51,18 @@ const visible = site.layout.sections.filter((s) => s.visible).map((s) => s.id);
     <meta name="twitter:title" content={title} />
     <meta name="twitter:description" content={description} />
     <meta name="twitter:image" content={ogImage} />
+    <style set:html={themeCss} id="theme-css"></style>
     <script is:inline>
       document.documentElement.classList.add('js');
     </script>
   </head>
-  <body id="top" data-work-slug={workSlug}>
+  <body id="top" data-work-slug={workSlug} data-page-slug={page?.slug}>
     <a class="skip-link" href="#main">Skip to content</a>
-    <Header name={meta.author} ctaLabel={site.contact.ctaLabel} email={site.contact.email} sections={visible} home={home} />
+    <HeaderRoot ctx={ctx} />
     <main id="main">
       <slot />
     </main>
-    <Footer author={meta.author} />
+    <FooterRoot ctx={ctx} year={new Date().getFullYear()} />
     <script>
       import '../scripts/main';
     </script>

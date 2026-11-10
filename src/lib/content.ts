@@ -17,15 +17,18 @@
  * Runs at build time only (Astro frontmatter, `getStaticPaths`). Do not import
  * it from client-side scripts.
  */
-import { existsSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { marked } from 'marked';
 import sanitizeHtml from 'sanitize-html';
 import siteJson from '../../content/site.json';
 import worksJson from '../../content/works.json';
-import { contentSource, readSnapshot, supabaseConfig } from './content-source';
+import { compareWorks } from './render-model';
+import { ContentSourceError, contentSource, readSnapshot, supabaseConfig } from './content-source';
 import type { Category, Layout, Site, Work } from './schema';
+import type { SnapshotV3 } from './schema-v3';
 import { validateContent, type ValidContent } from './validate';
+import { validateSnapshotV3 } from './validate-v3';
 
 export type { Category, FeaturedOptions, GridOptions, Layout, Media, Section, SectionId, Site, Social, Work } from './schema';
 export { ContentError } from './validate';
@@ -43,7 +46,11 @@ function mediaExists(path: string): boolean {
   return existsSync(full) && statSync(full).isFile();
 }
 
+/** v3 snapshot of the local source: the migrated v2 content (docs/V3-CONTRACTS.md §7), editable by hand. */
+export const LOCAL_SNAPSHOT_FILE = join(process.cwd(), 'content', 'snapshot-v3.json');
+
 let cache: Promise<ValidContent> | undefined;
+let snapshotCache: Promise<SnapshotV3> | undefined;
 
 async function fromSource(): Promise<ValidContent> {
   if (contentSource() === 'local') return validateContent(siteJson, worksJson, mediaExists);
@@ -60,15 +67,27 @@ function load(): Promise<ValidContent> {
   return cache;
 }
 
-/** Sort by `order` ascending (missing last), then `year` descending (missing last), then title. */
-export function compareWorks(a: Work, b: Work): number {
-  const orderA = a.order ?? Number.POSITIVE_INFINITY;
-  const orderB = b.order ?? Number.POSITIVE_INFINITY;
-  if (orderA !== orderB) return orderA < orderB ? -1 : 1;
-  const yearA = a.year ?? Number.NEGATIVE_INFINITY;
-  const yearB = b.year ?? Number.NEGATIVE_INFINITY;
-  if (yearA !== yearB) return yearA > yearB ? -1 : 1;
-  return a.title.localeCompare(b.title);
+export { compareWorks };
+
+async function snapshotFromSource(): Promise<SnapshotV3> {
+  if (contentSource() === 'local') {
+    return validateSnapshotV3(JSON.parse(readFileSync(LOCAL_SNAPSHOT_FILE, 'utf8')), mediaExists);
+  }
+  const { site, works, version, pages, theme } = await readSnapshot(process.cwd(), supabaseConfig());
+  if (version !== 3) {
+    throw new ContentSourceError('The published snapshot is not version 3 (no pages or theme). Publish again from the v3 editor, or run the v3 migrations first.');
+  }
+  return validateSnapshotV3({ version, site, theme, pages, works }, mediaExists);
+}
+
+/**
+ * The v3 snapshot: site (nav, footer, SEO defaults), theme, published pages with
+ * their sections and blocks, and works. This is what the renderer reads
+ * (docs/V3-CONTRACTS.md §5). Loaded and validated once per build.
+ */
+export function getSnapshot(): Promise<SnapshotV3> {
+  snapshotCache ??= snapshotFromSource();
+  return snapshotCache;
 }
 
 export async function getSite(): Promise<Site> {

@@ -1,11 +1,12 @@
 /**
- * `npm run validate:content`: checks content/site.json, content/works.json and
+ * `npm run validate:content`: checks content/site.json, content/works.json, content/snapshot-v3.json and
  * the files they reference in content/media/. Exits 1 with a list of problems.
  * Also runs before every `npm run build`.
  */
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { ContentError, validateContent } from '../src/lib/validate.ts';
+import { validateSnapshotV3 } from '../src/lib/validate-v3.ts';
 
 const root = process.cwd();
 const contentDir = join(root, 'content');
@@ -29,10 +30,13 @@ const mediaExists = (path: string) => {
 
 try {
   const { site, works } = validateContent(readJson('site.json'), readJson('works.json'), mediaExists);
+  // The v3 snapshot the public site renders (pages, sections, theme).
+  const snapshot = validateSnapshotV3(readJson('snapshot-v3.json'), mediaExists);
   const placeholders = works.filter((w) => w.placeholder).length;
   console.log(
     `✓ content is valid: ${works.length} works, ${site.categories.length} categories` +
-      (placeholders ? ` (${placeholders} marked placeholder)` : ''),
+      (placeholders ? ` (${placeholders} marked placeholder)` : '') +
+      `; snapshot-v3.json: ${snapshot.pages.length} page${snapshot.pages.length === 1 ? '' : 's'}`,
   );
 } catch (error) {
   if (error instanceof ContentError) {

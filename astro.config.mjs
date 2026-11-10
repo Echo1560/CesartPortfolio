@@ -1,5 +1,6 @@
 // @ts-check
 import { existsSync } from 'node:fs';
+import preact from '@astrojs/preact';
 import { defineConfig } from 'astro/config';
 
 // CONTENT_SOURCE and PUBLIC_SUPABASE_* for src/lib/content.ts. Real env vars win over .env.
@@ -10,6 +11,8 @@ if (existsSync('.env')) process.loadEnvFile('.env');
 // import.meta.env.BASE_URL, never a hard-coded '/'.
 export default defineConfig({
   output: 'static',
+  // Preact renders the shared section components to static HTML. No client:* directive is used on public pages, so visitors get no extra JS.
+  integrations: [preact()],
   site: 'https://echo1560.github.io',
   base: '/CesartPortfolio/',
   trailingSlash: 'always',

@@ -1,0 +1,714 @@
+{
+    "site": {
+        "nav": {
+            "cta": {
+                "link": {
+                    "kind": "page",
+                    "anchor": "contact",
+                    "pageId": "958b8741-c64f-4400-8136-a702e6bf8b2b"
+                },
+                "label": "Commissions (placeholder)",
+                "style": "primary"
+            },
+            "items": [
+                {
+                    "id": "work",
+                    "link": {
+                        "kind": "page",
+                        "anchor": "work",
+                        "pageId": "958b8741-c64f-4400-8136-a702e6bf8b2b"
+                    },
+                    "label": "Work"
+                },
+                {
+                    "id": "about",
+                    "link": {
+                        "kind": "page",
+                        "anchor": "about",
+                        "pageId": "958b8741-c64f-4400-8136-a702e6bf8b2b"
+                    },
+                    "label": "About"
+                },
+                {
+                    "id": "contact",
+                    "link": {
+                        "kind": "page",
+                        "anchor": "contact",
+                        "pageId": "958b8741-c64f-4400-8136-a702e6bf8b2b"
+                    },
+                    "label": "Contact"
+                }
+            ]
+        },
+        "hero": {
+            "media": {
+                "alt": "Placeholder reel: a grey circle loops around an ellipse",
+                "src": "placeholder/hero-reel.mp4",
+                "loop": true,
+                "type": "video",
+                "width": 1280,
+                "height": 720,
+                "poster": "placeholder/hero-reel-poster.jpg"
+            },
+            "heading": "Cesart",
+            "subheading": "Illustrator & 2D animator (placeholder tagline, lorem ipsum)"
+        },
+        "meta": {
+            "lang": "en",
+            "title": "Cesart — Illustration & 2D Animation (placeholder)",
+            "author": "Cesart",
+            "ogImage": "placeholder/og-image.jpg",
+            "description": "Placeholder description. Lorem ipsum dolor sit amet, portfolio of illustration and 2D animation."
+        },
+        "about": {
+            "body": "Placeholder bio. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.\n\n**Services (placeholder):** editorial illustration, character design, 2D animation, motion loops.",
+            "heading": "About",
+            "portrait": {
+                "alt": "Placeholder portrait: grey frame with the word Portrait",
+                "src": "placeholder/portrait.jpg",
+                "type": "image",
+                "width": 1200,
+                "height": 1500
+            }
+        },
+        "footer": {
+            "links": [
+            ],
+            "showSocials": false,
+            "showBackToTop": true,
+            "showCopyright": true
+        },
+        "layout": {
+            "sections": [
+                {
+                    "id": "hero",
+                    "visible": true
+                },
+                {
+                    "id": "featured",
+                    "options": {
+                        "limit": 6,
+                        "workIds": [
+                            "placeholder-illustration-01",
+                            "placeholder-animation-01",
+                            "placeholder-illustration-02",
+                            "placeholder-animation-02"
+                        ]
+                    },
+                    "visible": true
+                },
+                {
+                    "id": "grid",
+                    "options": {
+                        "columns": {
+                            "lg": 3,
+                            "md": 2,
+                            "sm": 1
+                        },
+                        "masonry": true,
+                        "showFilters": true
+                    },
+                    "visible": true
+                },
+                {
+                    "id": "about",
+                    "visible": true
+                },
+                {
+                    "id": "contact",
+                    "visible": true
+                }
+            ]
+        },
+        "contact": {
+            "email": "hello@example.com",
+            "heading": "Contact",
+            "socials": [
+                {
+                    "id": "instagram",
+                    "url": "https://www.instagram.com/",
+                    "label": "Instagram"
+                },
+                {
+                    "id": "behance",
+                    "url": "https://www.behance.net/",
+                    "label": "Behance"
+                },
+                {
+                    "id": "vimeo",
+                    "url": "https://vimeo.com/",
+                    "label": "Vimeo"
+                }
+            ],
+            "ctaLabel": "Commissions (placeholder)"
+        },
+        "socials": [
+            {
+                "id": "instagram",
+                "url": "https://www.instagram.com/",
+                "label": "Instagram"
+            },
+            {
+                "id": "behance",
+                "url": "https://www.behance.net/",
+                "label": "Behance"
+            },
+            {
+                "id": "vimeo",
+                "url": "https://vimeo.com/",
+                "label": "Vimeo"
+            }
+        ],
+        "categories": [
+            {
+                "id": "illustration",
+                "slug": "illustration",
+                "label": "Illustration"
+            },
+            {
+                "id": "animation",
+                "slug": "animation",
+                "label": "Animation"
+            }
+        ],
+        "placeholder": true
+    },
+    "pages": [
+        {
+            "id": "958b8741-c64f-4400-8136-a702e6bf8b2b",
+            "seo": {
+            },
+            "slug": "home",
+            "title": "Home",
+            "isHome": true,
+            "status": "published",
+            "sections": [
+                {
+                    "id": "4e3ab308-bb9f-4db9-a26b-f1c364615118",
+                    "type": "hero",
+                    "content": {
+                        "media": {
+                            "alt": "Placeholder reel: a grey circle loops around an ellipse",
+                            "src": "placeholder/hero-reel.mp4",
+                            "loop": true,
+                            "type": "video",
+                            "width": 1280,
+                            "height": 720,
+                            "poster": "placeholder/hero-reel-poster.jpg",
+                            "mediaId": "9d08c158-d488-4676-a34d-a7fc9c1671a4",
+                            "posterId": "08bef75a-7809-4d21-baca-f6b185b24292"
+                        },
+                        "heading": [
+                            {
+                                "text": "Cesart",
+                                "type": "text"
+                            }
+                        ],
+                        "subheading": [
+                            {
+                                "text": "Illustrator & 2D animator (placeholder tagline, lorem ipsum)",
+                                "type": "text"
+                            }
+                        ]
+                    },
+                    "variant": "default",
+                    "settings": {
+                    },
+                    "visibility": {
+                        "mobile": true,
+                        "tablet": true,
+                        "desktop": true
+                    }
+                },
+                {
+                    "id": "7f756503-8c08-4563-b96b-98fb1a078106",
+                    "type": "featured",
+                    "content": {
+                        "heading": [
+                            {
+                                "text": "Featured",
+                                "type": "text"
+                            }
+                        ]
+                    },
+                    "variant": "default",
+                    "settings": {
+                        "limit": 6,
+                        "anchor": "featured",
+                        "workIds": [
+                            "placeholder-illustration-01",
+                            "placeholder-animation-01",
+                            "placeholder-illustration-02",
+                            "placeholder-animation-02"
+                        ]
+                    },
+                    "visibility": {
+                        "mobile": true,
+                        "tablet": true,
+                        "desktop": true
+                    }
+                },
+                {
+                    "id": "87269bfc-e28b-4778-bdc6-05e7fa8ed3f1",
+                    "type": "gallery",
+                    "content": {
+                        "heading": [
+                            {
+                                "text": "Work",
+                                "type": "text"
+                            }
+                        ],
+                        "emptyText": [
+                            {
+                                "text": "No work in this category yet.",
+                                "type": "text"
+                            }
+                        ]
+                    },
+                    "variant": "default",
+                    "settings": {
+                        "sort": "default",
+                        "anchor": "work",
+                        "source": {
+                            "kind": "all"
+                        },
+                        "columns": {
+                            "lg": 3,
+                            "md": 2,
+                            "sm": 1
+                        },
+                        "showFilters": true
+                    },
+                    "visibility": {
+                        "mobile": true,
+                        "tablet": true,
+                        "desktop": true
+                    }
+                },
+                {
+                    "id": "0b23b611-e5ff-409f-9a44-c4c5a4e9a6cb",
+                    "type": "cta",
+                    "content": {
+                        "buttons": [
+                            {
+                                "link": {
+                                    "kind": "anchor",
+                                    "anchor": "contact"
+                                },
+                                "label": "Commissions (placeholder)",
+                                "style": "primary"
+                            }
+                        ],
+                        "heading": [
+                            {
+                                "text": "Have a project in mind?",
+                                "type": "text"
+                            }
+                        ]
+                    },
+                    "variant": "default",
+                    "settings": {
+                        "paddingTop": "none"
+                    },
+                    "visibility": {
+                        "mobile": true,
+                        "tablet": true,
+                        "desktop": true
+                    }
+                },
+                {
+                    "id": "f00d4fa9-cca2-44a4-b15e-ba9e14cacad7",
+                    "type": "about",
+                    "content": {
+                        "body": {
+                            "type": "doc",
+                            "content": [
+                                {
+                                    "type": "paragraph",
+                                    "content": [
+                                        {
+                                            "text": "Placeholder bio. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+                                            "type": "text"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "type": "paragraph",
+                                    "content": [
+                                        {
+                                            "text": "Services (placeholder):",
+                                            "type": "text",
+                                            "marks": [
+                                                {
+                                                    "type": "bold"
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "text": " editorial illustration, character design, 2D animation, motion loops.",
+                                            "type": "text"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        "heading": [
+                            {
+                                "text": "About",
+                                "type": "text"
+                            }
+                        ],
+                        "portrait": {
+                            "alt": "Placeholder portrait: grey frame with the word Portrait",
+                            "src": "placeholder/portrait.jpg",
+                            "type": "image",
+                            "width": 1200,
+                            "height": 1500,
+                            "mediaId": "b6b98cd6-ce97-4cbd-947e-9b1fb7763a3a"
+                        }
+                    },
+                    "variant": "default",
+                    "settings": {
+                        "anchor": "about"
+                    },
+                    "visibility": {
+                        "mobile": true,
+                        "tablet": true,
+                        "desktop": true
+                    }
+                },
+                {
+                    "id": "19a0c2c2-5a38-430d-89ff-452c1ee8bf02",
+                    "type": "contact",
+                    "content": {
+                        "email": "hello@example.com",
+                        "heading": [
+                            {
+                                "text": "Contact",
+                                "type": "text"
+                            }
+                        ],
+                        "ctaLabel": "Commissions (placeholder)"
+                    },
+                    "variant": "default",
+                    "settings": {
+                        "anchor": "contact",
+                        "showEmail": true,
+                        "showSocials": true
+                    },
+                    "visibility": {
+                        "mobile": true,
+                        "tablet": true,
+                        "desktop": true
+                    }
+                }
+            ]
+        }
+    ],
+    "theme": {
+        "preset": "classic",
+        "tokens": {
+            "links": {
+                "color": "text",
+                "underline": "always"
+            },
+            "colors": {
+                "dark": {
+                    "text": "#efede8",
+                    "focus": "#7fb0ff",
+                    "muted": "#a3a19a",
+                    "accent": "#e08a73",
+                    "border": "#2f2e2b",
+                    "surface": "#1b1b19",
+                    "background": "#121211",
+                    "accentContrast": "#121211"
+                },
+                "light": {
+                    "text": "#1b1b1a",
+                    "focus": "#1a5fd0",
+                    "muted": "#5d5c58",
+                    "accent": "#8a3b2a",
+                    "border": "#dcdad4",
+                    "surface": "#ffffff",
+                    "background": "#f6f5f2",
+                    "accentContrast": "#ffffff"
+                }
+            },
+            "motion": {
+                "enabled": true
+            },
+            "radius": "medium",
+            "buttons": {
+                "shape": "pill",
+                "style": "solid",
+                "textCase": "none"
+            },
+            "spacing": {
+                "scale": "medium"
+            },
+            "typography": {
+                "scale": "medium",
+                "bodyFont": "system-sans",
+                "bodyWeight": 400,
+                "lineHeight": 1.6,
+                "headingCase": "none",
+                "headingFont": "system-serif",
+                "headingWeight": 400,
+                "letterSpacing": 0,
+                "headingLineHeight": 1.1,
+                "headingLetterSpacing": 0
+            }
+        }
+    },
+    "works": [
+        {
+            "id": "placeholder-illustration-01",
+            "slug": "placeholder-illustration-01",
+            "tags": [
+                "placeholder",
+                "editorial"
+            ],
+            "year": 2026,
+            "media": {
+                "alt": "Placeholder illustration: grey portrait-format frame labelled Illustration 01",
+                "src": "placeholder/illustration-01.jpg",
+                "type": "image",
+                "width": 1600,
+                "height": 2000
+            },
+            "order": 1,
+            "title": "Placeholder Illustration 01",
+            "featured": true,
+            "categoryId": "illustration",
+            "description": "Placeholder description. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Duis aute irure dolor in reprehenderit in voluptate velit esse.",
+            "placeholder": true
+        },
+        {
+            "id": "placeholder-animation-01",
+            "slug": "placeholder-animation-01",
+            "tags": [
+                "placeholder",
+                "loop"
+            ],
+            "year": 2026,
+            "media": {
+                "alt": "Placeholder loop: a grey circle travels around an ellipse",
+                "src": "placeholder/animation-01.webp",
+                "loop": true,
+                "type": "animated",
+                "width": 480,
+                "height": 480,
+                "poster": "placeholder/animation-01-poster.jpg"
+            },
+            "order": 2,
+            "title": "Placeholder Loop 01",
+            "featured": true,
+            "categoryId": "animation",
+            "description": "Placeholder description. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Duis aute irure dolor in reprehenderit in voluptate velit esse.",
+            "placeholder": true
+        },
+        {
+            "id": "placeholder-illustration-02",
+            "slug": "placeholder-illustration-02",
+            "tags": [
+                "placeholder",
+                "landscape"
+            ],
+            "year": 2026,
+            "media": {
+                "alt": "Placeholder illustration: grey landscape-format frame labelled Illustration 02",
+                "src": "placeholder/illustration-02.jpg",
+                "type": "image",
+                "width": 2400,
+                "height": 1600
+            },
+            "order": 3,
+            "title": "Placeholder Illustration 02",
+            "featured": true,
+            "categoryId": "illustration",
+            "description": "Placeholder description. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Duis aute irure dolor in reprehenderit in voluptate velit esse.",
+            "placeholder": true
+        },
+        {
+            "id": "placeholder-animation-02",
+            "slug": "placeholder-animation-02",
+            "tags": [
+                "placeholder",
+                "short film"
+            ],
+            "year": 2025,
+            "media": {
+                "alt": "Placeholder video: a grey circle moves around an ellipse for two seconds",
+                "src": "placeholder/animation-02.mp4",
+                "loop": false,
+                "type": "video",
+                "width": 960,
+                "height": 540,
+                "poster": "placeholder/animation-02-poster.jpg"
+            },
+            "order": 4,
+            "title": "Placeholder Short 02",
+            "featured": true,
+            "categoryId": "animation",
+            "description": "Placeholder description. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
+            "placeholder": true
+        },
+        {
+            "id": "placeholder-illustration-03",
+            "slug": "placeholder-illustration-03",
+            "tags": [
+                "placeholder",
+                "character"
+            ],
+            "year": 2025,
+            "media": {
+                "alt": "Placeholder illustration: grey square frame labelled Illustration 03",
+                "src": "placeholder/illustration-03.jpg",
+                "type": "image",
+                "width": 1800,
+                "height": 1800
+            },
+            "title": "Placeholder Illustration 03",
+            "categoryId": "illustration",
+            "description": "Placeholder description. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis aute irure dolor in reprehenderit in voluptate velit esse.",
+            "placeholder": true
+        },
+        {
+            "id": "placeholder-illustration-04",
+            "slug": "placeholder-illustration-04",
+            "tags": [
+                "placeholder",
+                "poster"
+            ],
+            "year": 2025,
+            "media": {
+                "alt": "Placeholder illustration: tall grey frame labelled Illustration 04",
+                "src": "placeholder/illustration-04.jpg",
+                "type": "image",
+                "width": 1400,
+                "height": 2100
+            },
+            "title": "Placeholder Illustration 04",
+            "categoryId": "illustration",
+            "description": "Placeholder description. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis aute irure dolor in reprehenderit in voluptate velit esse.",
+            "placeholder": true
+        },
+        {
+            "id": "placeholder-animation-03",
+            "slug": "placeholder-animation-03",
+            "tags": [
+                "placeholder",
+                "storyboard"
+            ],
+            "year": 2025,
+            "media": {
+                "alt": "Placeholder storyboard frame: grey 4:3 frame labelled Storyboard frame",
+                "src": "placeholder/animation-03.jpg",
+                "type": "image",
+                "width": 2000,
+                "height": 1500
+            },
+            "title": "Placeholder Storyboard 03",
+            "categoryId": "animation",
+            "description": "Placeholder description. Ut enim ad minim veniam, quis nostrud exercitation ullamco. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+            "placeholder": true
+        },
+        {
+            "id": "placeholder-illustration-05",
+            "slug": "placeholder-illustration-05",
+            "tags": [
+                "placeholder",
+                "landscape"
+            ],
+            "year": 2024,
+            "media": {
+                "alt": "Placeholder illustration: wide grey frame labelled Illustration 05",
+                "src": "placeholder/illustration-05.jpg",
+                "type": "image",
+                "width": 2400,
+                "height": 1350
+            },
+            "title": "Placeholder Illustration 05",
+            "categoryId": "illustration",
+            "description": "Placeholder description. Duis aute irure dolor in reprehenderit in voluptate velit esse. Duis aute irure dolor in reprehenderit in voluptate velit esse.",
+            "placeholder": true
+        },
+        {
+            "id": "placeholder-illustration-06",
+            "slug": "placeholder-illustration-06",
+            "tags": [
+                "placeholder",
+                "series"
+            ],
+            "year": 2024,
+            "media": {
+                "alt": "Placeholder illustration: grey portrait-format frame labelled Illustration 06",
+                "src": "placeholder/illustration-06.jpg",
+                "type": "image",
+                "width": 1500,
+                "height": 2000
+            },
+            "title": "Placeholder Series 06",
+            "gallery": [
+                {
+                    "alt": "Placeholder detail crop labelled Detail A",
+                    "src": "placeholder/illustration-06-detail-a.jpg",
+                    "type": "image",
+                    "width": 1600,
+                    "height": 1600
+                },
+                {
+                    "alt": "Placeholder detail crop labelled Detail B",
+                    "src": "placeholder/illustration-06-detail-b.jpg",
+                    "type": "image",
+                    "width": 2000,
+                    "height": 1500
+                }
+            ],
+            "categoryId": "illustration",
+            "description": "Placeholder description. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+            "placeholder": true
+        },
+        {
+            "id": "placeholder-animation-04",
+            "slug": "placeholder-animation-04",
+            "tags": [
+                "placeholder",
+                "character"
+            ],
+            "year": 2024,
+            "media": {
+                "alt": "Placeholder character turnaround: tall grey frame labelled Character turnaround",
+                "src": "placeholder/animation-04.jpg",
+                "type": "image",
+                "width": 1080,
+                "height": 1920
+            },
+            "title": "Placeholder Turnaround 04",
+            "categoryId": "animation",
+            "description": "Placeholder description. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+            "placeholder": true
+        },
+        {
+            "id": "placeholder-illustration-07",
+            "slug": "placeholder-illustration-07",
+            "tags": [
+                "placeholder",
+                "editorial"
+            ],
+            "year": 2023,
+            "media": {
+                "alt": "Placeholder illustration: grey 5:4 frame labelled Illustration 07",
+                "src": "placeholder/illustration-07.jpg",
+                "type": "image",
+                "width": 2000,
+                "height": 1600
+            },
+            "title": "Placeholder Illustration 07",
+            "categoryId": "illustration",
+            "description": "Placeholder description. Ut enim ad minim veniam, quis nostrud exercitation ullamco. Duis aute irure dolor in reprehenderit in voluptate velit esse.",
+            "placeholder": true
+        }
+    ],
+    "version": 3
+}
