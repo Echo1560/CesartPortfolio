@@ -472,8 +472,9 @@ export const DEFAULT_THEME_TOKENS: ThemeTokens = {
   motion: { enabled: true },
 };
 
-/** Preset ids. `classic` is DEFAULT_THEME_TOKENS; the others are defined by the theme editor (TITA-90 stage 6). */
-export const THEME_PRESETS = ['classic'] as const;
+/** Preset ids. `classic` is DEFAULT_THEME_TOKENS; the tokens of every preset live in `theme-presets.ts`. */
+export const THEME_PRESETS = ['classic', 'noir', 'paper', 'meadow', 'citrus'] as const;
+export type ThemePresetId = (typeof THEME_PRESETS)[number];
 
 export const themeSchema = z.object({ preset: kebabId, tokens: themeTokensSchema }).strict();
 
