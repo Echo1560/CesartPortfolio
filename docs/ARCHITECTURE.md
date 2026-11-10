@@ -2,7 +2,7 @@
 
 The public site is a static Astro build on GitHub Pages. Every word, image and section on it comes from one validated `Content` object (`src/lib/schema.ts`). Pages and components never read content directly: they go through the data layer in `src/lib/`. Since v2 that object comes from Supabase. The artist edits it in an in-site dashboard and freezes it with a Publish step. The v1 `content/` folder is still a supported source for dev, tests and the fallback build.
 
-The exact contracts (tables, mapping to `schema.ts`, storage, RPCs, Edge Functions, events, the `load()` switch) are in [`V2-CONTRACTS.md`](V2-CONTRACTS.md). This file explains how the pieces fit together. Go-live steps: [`GO-LIVE.md`](GO-LIVE.md). Editor guide: [`ADMIN.md`](ADMIN.md).
+The exact contracts (tables, mapping to `schema.ts`, storage, RPCs, Edge Functions, events, the `load()` switch) are in [`V2-CONTRACTS.md`](V2-CONTRACTS.md). v3 (the visual editor, TITA-90) adds pages, sections, blocks and a theme on top of it: [`V3-CONTRACTS.md`](V3-CONTRACTS.md), with the zod contract in `src/lib/schema-v3.ts`. Until the v3 loader lands, the build still renders the v2 `Site`, which snapshot v3 keeps as a superset (V3-CONTRACTS §5). This file explains how the pieces fit together. Go-live steps: [`GO-LIVE.md`](GO-LIVE.md). Editor guide: [`ADMIN.md`](ADMIN.md).
 
 ## Two data flows
 

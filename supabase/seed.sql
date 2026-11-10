@@ -116,11 +116,15 @@ values
   ('placeholder-illustration-02', 2),
   ('placeholder-animation-02', 3);
 
--- Initial publish: the live snapshot equals content/*.json -----------------------
+-- v3: the home page, sections, nav and footer, converted from the v2 rows above --
+
+select public.migrate_v2_to_v3();
+
+-- Initial publish: snapshot v3, whose v2 part equals content/*.json -------------
 
 insert into public.publish_runs (requested_by, status, snapshot, media_paths, content_hash, finished_at)
 select null, 'succeeded', c, public.snapshot_media_paths(c), encode(extensions.digest(c::text, 'sha256'), 'hex'), now()
-from (select public.build_content(true) as c) s;
+from (select public.build_content_v3(true) as c) s;
 
 -- Seeding is not editor activity.
 truncate public.activity_log;

@@ -31,7 +31,7 @@ select is(
 
 select is(
   (select coalesce(array_agg(t order by t), '{}') from unnest(array['editors', 'media', 'site', 'socials', 'categories', 'works',
-     'media_placements', 'layout', 'layout_featured_works']) t
+     'media_placements', 'layout', 'layout_featured_works', 'pages', 'sections', 'blocks', 'theme']) t
    where not exists (select 1 from information_schema.columns c where c.table_schema = 'public' and c.table_name = t and c.column_name = 'updated_by')
       or not exists (select 1 from information_schema.columns c where c.table_schema = 'public' and c.table_name = t and c.column_name = 'updated_at')),
   '{}'::text[],
@@ -40,7 +40,7 @@ select is(
 
 select is(
   (select coalesce(array_agg(t order by t), '{}') from unnest(array['editors', 'media', 'site', 'socials', 'categories', 'works',
-     'media_placements', 'layout', 'layout_featured_works']) t
+     'media_placements', 'layout', 'layout_featured_works', 'pages', 'sections', 'blocks', 'theme']) t
    where not exists (select 1 from pg_trigger g where g.tgrelid = ('public.' || t)::regclass and g.tgname = t || '_set_audit_fields')
       or not exists (select 1 from pg_trigger g where g.tgrelid = ('public.' || t)::regclass and g.tgname = t || '_log_activity')),
   '{}'::text[],

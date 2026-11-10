@@ -234,11 +234,15 @@ ${featuredIds(site)
 `
     : ''
 }
--- Initial publish: the live snapshot equals content/*.json -----------------------
+-- v3: the home page, sections, nav and footer, converted from the v2 rows above --
+
+select public.migrate_v2_to_v3();
+
+-- Initial publish: snapshot v3, whose v2 part equals content/*.json -------------
 
 insert into public.publish_runs (requested_by, status, snapshot, media_paths, content_hash, finished_at)
 select null, 'succeeded', c, public.snapshot_media_paths(c), encode(extensions.digest(c::text, 'sha256'), 'hex'), now()
-from (select public.build_content(true) as c) s;
+from (select public.build_content_v3(true) as c) s;
 
 -- Seeding is not editor activity.
 truncate public.activity_log;
@@ -252,7 +256,11 @@ create extension if not exists pgtap with schema extensions;
 select plan(3);
 
 select is(public.build_content(true), ${q(expected)}::jsonb, 'build_content() of the seed equals content/*.json');
-select is(public.get_published_content(), ${q(expected)}::jsonb, 'the seeded live snapshot equals content/*.json');
+select is(
+  (select jsonb_build_object('site', (c -> 'site') - 'nav' - 'footer' - 'socials', 'works', c -> 'works') from (select public.get_published_content() as c) s),
+  ${q(expected)}::jsonb,
+  'the v2 part of the seeded live snapshot equals content/*.json'
+);
 select is(
   (select count(*)::int from public.media),
   ${library.size},
