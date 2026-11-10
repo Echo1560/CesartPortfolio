@@ -18,6 +18,9 @@ export const ANIMATED_WORKS = {
 /** Slug and media file of the work added with content only (no code change). */
 export const ADDED_WORK = { id: 'e2e-added-work', slug: 'e2e-added-work', title: 'E2E Added Work' };
 
+/** Theme edit baked into the fixture: accent colour and heading font (what the Site styles panel writes). */
+export const THEME_EDIT = { accent: '#7a2e8e', headingFont: 'lora' };
+
 /** Second page: heading and rich-text blocks, one of them with markup-looking text that must be escaped. */
 export const JOURNAL_PAGE = {
   id: '5a1c2b3d-0000-4000-8000-0000000000a1',
@@ -118,6 +121,8 @@ export function buildFixture() {
   // A second page, in the nav, plus a hidden page that must not be emitted.
   snapshot.pages.push(JOURNAL_PAGE, HIDDEN_PAGE);
   snapshot.site.nav.items.push({ id: 'journal', label: 'Journal', link: { kind: 'page', pageId: JOURNAL_PAGE.id } });
+  snapshot.theme.tokens.colors.light.accent = THEME_EDIT.accent;
+  snapshot.theme.tokens.typography.headingFont = THEME_EDIT.headingFont;
   writeFileSync(snapshotFile, JSON.stringify(snapshot, null, 2));
 
   const astro = join(root, 'node_modules', 'astro', 'bin', 'astro.mjs');
