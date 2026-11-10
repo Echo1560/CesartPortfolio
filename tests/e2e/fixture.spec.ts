@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { ADDED_WORK, ANIMATED_WORKS } from './build-fixture.mjs';
+import { ADDED_WORK, ANIMATED_WORKS, THEME_EDIT } from './build-fixture.mjs';
 
 // Runs against a build of edited content: layout reordered, `about` hidden,
 // and one extra works.json entry + media file. No source code differs.
@@ -109,4 +109,18 @@ test.describe('pages', () => {
     expect(xml).toContain('/CesartPortfolio/journal/');
     expect(xml).not.toContain('secret');
   });
+});
+
+test('a theme edited in content (accent colour, heading font) is built into the page CSS', async ({ page }) => {
+  await page.goto(HOME);
+  const css = (await page.locator('#theme-css').textContent()) ?? '';
+  expect(css).toContain(`--color-accent: ${THEME_EDIT.accent};`);
+  expect(css).toMatch(/--font-display: 'Lora', /);
+  expect(css).toContain("font-family: 'Lora'");
+  const computed = await page.evaluate(() => {
+    const s = getComputedStyle(document.documentElement);
+    return { accent: s.getPropertyValue('--color-accent').trim(), display: s.getPropertyValue('--font-display') };
+  });
+  expect(computed.accent).toBe(THEME_EDIT.accent);
+  expect(computed.display).toContain('Lora');
 });

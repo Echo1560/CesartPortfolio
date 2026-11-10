@@ -50,6 +50,8 @@ export interface Canvas {
   frame: HTMLIFrameElement;
   /** Re-render the page. `fresh` throws the old DOM away first (needed after inline typing). */
   refresh(fresh?: boolean): void;
+  /** Swaps only the theme CSS (colour drags): no re-render. */
+  refreshTheme(): void;
   /** Updates the selection outline without re-rendering. */
   markSelected(): void;
   /** Runs an editing command in the page (bold, italic, createLink, formatBlock…). */
@@ -320,6 +322,10 @@ export function mountCanvas(host: HTMLElement, store: EditorStore, hooks: Canvas
   return {
     frame,
     refresh: (fresh = false) => void paint(fresh),
+    refreshTheme: () => {
+      const style = doc?.getElementById('theme');
+      if (style) style.textContent = themeCss();
+    },
     markSelected,
     exec: (command, value) => doc?.execCommand(command, false, value) ?? false,
     selectionRange: () => {

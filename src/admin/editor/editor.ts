@@ -11,6 +11,7 @@ import { inFlight, LABEL, listRuns, type Run } from '../views/publish';
 import { mountCanvas, type Canvas } from './canvas';
 import { loadEditorData } from './model';
 import { createPanel, type Panel } from './panel';
+import { createStylesPanel } from './styles-panel';
 import { pickBlock, pickSection } from './picker';
 import { EditorStore, type Device, type SaveState } from './store';
 import type { FieldBinding } from './inline';
@@ -77,6 +78,7 @@ export async function renderEditor(el: HTMLElement, opts: { slug?: string; email
   const redo = h('button', { type: 'button', class: 'btn-icon', 'aria-label': 'Redo', title: 'Redo (Ctrl+Shift+Z)', onclick: () => store.redo() }, '↷');
   const flash = h('span', { class: 'editor__flash', role: 'status', 'aria-live': 'polite' });
   const saveState = h('span', { class: 'editor__save', role: 'status', 'aria-live': 'polite' });
+  const stylesButton = h('button', { type: 'button', class: 'btn btn--ghost', 'aria-pressed': 'false', 'data-action': 'site-styles' }, 'Site styles');
   const publishButton = h('button', { type: 'button', class: 'btn' }, 'Publish');
   const publishState = h('span', { class: 'editor__publish', role: 'status', 'aria-live': 'polite' });
   const menu = h(
@@ -95,6 +97,7 @@ export async function renderEditor(el: HTMLElement, opts: { slug?: string; email
     saveState,
     flash,
     h('span', { class: 'grow' }),
+    stylesButton,
     h('a', { class: 'btn btn--ghost', href: '#/preview' }, 'Preview'),
     publishButton,
     publishState,
@@ -159,7 +162,19 @@ export async function renderEditor(el: HTMLElement, opts: { slug?: string; email
   const notice = h('div', { class: 'editor__notice', role: 'alert', hidden: true });
   const stage = h('div', { class: 'editor__stage' });
   const panelHost = h('aside', { class: 'editor__panel', 'aria-label': 'Settings' });
-  const panel: Panel = createPanel(panelHost, store);
+  const panelBody = h('div', { class: 'editor__panel-body' });
+  const stylesBody = h('div', { class: 'editor__panel-body', hidden: true });
+  panelHost.append(panelBody, stylesBody);
+  const panel: Panel = createPanel(panelBody, store);
+  const styles = createStylesPanel(stylesBody, store);
+  stylesButton.addEventListener('click', () => {
+    const open = stylesBody.hidden;
+    stylesBody.hidden = !open;
+    panelBody.hidden = open;
+    stylesButton.setAttribute('aria-pressed', String(open));
+    if (open) styles.render();
+    (open ? stylesBody : panelBody).querySelector<HTMLElement>('h2')?.focus();
+  });
   canvas = mountCanvas(stage, store, {
     onEditable: setFmt,
     onMedia: (_sel, slot, open) => panel.focusMedia(slot, open),
@@ -220,7 +235,8 @@ export async function renderEditor(el: HTMLElement, opts: { slug?: string; email
     switch (e.kind) {
       case 'content':
         paintBar();
-        if (e.source !== 'inline') canvas.refresh(e.source === 'history' || e.source === 'structure');
+        if (e.source === 'theme') canvas.refreshTheme();
+        else if (e.source !== 'inline') canvas.refresh(e.source === 'history' || e.source === 'structure');
         if (e.source === 'history' || e.source === 'structure') panel.render();
         break;
       case 'selection':

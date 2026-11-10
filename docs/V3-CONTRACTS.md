@@ -227,7 +227,9 @@ Palette = { background, surface, text, muted, accent, accentContrast, border, fo
 
 **Default (`classic`) = the v2 look**, from `src/styles/tokens.css`: the v2 light and dark palettes, `system-serif` headings at weight 400 and line height 1.1, `system-sans` body at line height 1.6, medium scale/spacing/radius, pill solid buttons, links always underlined in the text colour, motion on. `DEFAULT_THEME_TOKENS` (TS) and `default_theme_tokens()` (SQL) hold the same JSON; a unit test compares them. Stage 2 maps tokens to the existing CSS custom properties so that the default tokens produce exactly today's `tokens.css` values. Tokens that v2 does not expose (overlay colours, shadows, z-indexes) stay fixed in CSS.
 
-`THEME_PRESETS` has only `classic` for now; stage 6 adds the other presets in code (presets are code, not rows).
+`THEME_PRESETS` lists `classic`, `noir`, `paper`, `meadow` and `citrus`; their tokens are code (`src/lib/theme-presets.ts`), not rows, and every one passes WCAG AA in both palettes (`src/lib/contrast.ts`).
+
+**Editing.** The editor writes the single `theme` row (`id = 1`) through RLS, validated with `themeTokensSchema`. Like sections and blocks, **the last write wins**: two editors changing the styles at once overwrite each other, with no conflict notice. Theme saves run after content saves and fail independently, so a refused theme never blocks content.
 
 ## 5. Publish snapshot v3
 

@@ -3,6 +3,7 @@
  * debounced autosave to the draft tables (RLS decides who may write; the audit
  * trigger sets `updated_by`) and the current selection.
  */
+import { themeTokensSchema, type ThemeTokens } from '../../lib/schema-v3';
 import type { LooseBlock, LooseSection } from '../../components/render/types';
 import { explain, sb } from '../supabase';
 import { copyBlock, copySection } from './defaults';
@@ -11,7 +12,7 @@ import { blockPayload, checkBlock, checkSection, clone, eachBlock, eachSection, 
 
 export type Device = 'desktop' | 'tablet' | 'mobile';
 export type SaveState = 'saved' | 'dirty' | 'saving' | 'error';
-export type Source = 'panel' | 'inline' | 'history' | 'media' | 'load' | 'structure';
+export type Source = 'panel' | 'inline' | 'history' | 'media' | 'load' | 'structure' | 'theme';
 export interface Selection {
   sectionId: string;
   blockId?: string;
@@ -46,6 +47,10 @@ export class EditorStore {
   private lastKey = '';
   private lastAt = 0;
   private saved = new Map<string, string>();
+  private savedTheme = '';
+  private themePast: string[] = [];
+  private themeKey = '';
+  private themeAt = 0;
   private stamps: Map<string, string>;
   private timer: number | undefined;
   private saving: Promise<void> | null = null;
@@ -59,6 +64,41 @@ export class EditorStore {
     this.pageId = start?.id ?? '';
     for (const [key, json] of this.currentPayloads()) this.saved.set(key, json);
     this.placed = this.currentPlaces();
+    this.savedTheme = this.themeJson();
+  }
+
+  // ---- site styles ------------------------------------------------------------
+
+  /** The draft theme (`theme` row). The canvas reads it for the live preview. */
+  get theme(): { preset: string; tokens: ThemeTokens } {
+    return this.data.snapshot.theme;
+  }
+  get canUndoTheme(): boolean {
+    return this.themePast.length > 0;
+  }
+  private themeJson(): string {
+    return JSON.stringify(this.theme);
+  }
+
+  /** Changes the theme; `key` coalesces rapid edits of one control (a colour drag) into one undo step. */
+  editTheme(fn: (t: { preset: string; tokens: ThemeTokens }) => void, key = ''): void {
+    const now = Date.now();
+    if (!(key !== '' && key === this.themeKey && now - this.themeAt < COALESCE_MS)) {
+      this.themePast.push(this.themeJson());
+      if (this.themePast.length > HISTORY_LIMIT) this.themePast.shift();
+    }
+    this.themeKey = key;
+    this.themeAt = now;
+    fn(this.theme);
+    this.changed('theme');
+  }
+
+  undoTheme(): void {
+    const prev = this.themePast.pop();
+    if (!prev) return;
+    this.themeKey = '';
+    Object.assign(this.theme, JSON.parse(prev));
+    this.changed('theme');
   }
 
   on(fn: (e: StoreEvent) => void): () => void {
@@ -344,7 +384,7 @@ export class EditorStore {
 
   private isClean(): boolean {
     const { removed, added, moved } = this.structure();
-    return this.dirtyKeys().length === 0 && removed.length + added.length + moved.length === 0;
+    return this.dirtyKeys().length === 0 && removed.length + added.length + moved.length === 0 && this.themeJson() === this.savedTheme;
   }
 
   /** Writes every changed section and block now. Resolves when nothing is left to save (or a save failed). */
@@ -366,8 +406,20 @@ export class EditorStore {
       return;
     }
     this.setSave('saving');
+    // Content first, the theme last, and the theme error kept apart: a refused theme must not block content saves.
+    let failure: Error | null = null;
     try {
       await this.sync();
+    } catch (e) {
+      failure = e as Error;
+    }
+    try {
+      await this.syncTheme();
+    } catch (e) {
+      failure ??= e as Error;
+    }
+    try {
+      if (failure) throw failure;
       if (!this.isClean()) {
         this.setSave('dirty');
         this.schedule(SAVE_DELAY_MS);
@@ -376,7 +428,7 @@ export class EditorStore {
       const message = (e as Error).message;
       this.setSave('error', message);
       // A refused value stays refused until the editor changes it; a network problem is retried.
-      if (!/section:|block:|Not saved/.test(message)) this.schedule(RETRY_MS);
+      if (!/section:|block:|theme:|Not saved/.test(message)) this.schedule(RETRY_MS);
     }
   }
 
@@ -474,6 +526,18 @@ export class EditorStore {
       this.remember(id, rows);
       this.saved.set(`b:${id}`, payloads.get(`b:${id}`)!);
     }
+  }
+
+  /** Writes the theme row when it changed (one row, `id = 1`). */
+  private async syncTheme(): Promise<void> {
+    const json = this.themeJson();
+    if (json === this.savedTheme) return;
+    const { preset, tokens } = this.theme;
+    const r = themeTokensSchema.safeParse(tokens);
+    if (!r.success) throw new Error(`theme: ${r.error.issues.map((i) => `${i.path.join('.')} ${i.message}`).join('; ')}`);
+    const rows = await this.write(sb().from('theme').update({ preset, tokens: r.data }).eq('id', 1).select('id'));
+    if (!rows.length) throw new Error('Not saved: you can no longer edit the site styles');
+    this.savedTheme = json;
   }
 
   private forget(key: string): void {
