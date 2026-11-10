@@ -1,9 +1,10 @@
 -- v3 publish follow-ups (TITA-93, from the PR #29 review):
 --   1. restore_published_snapshot() also replaces blocks that moved to another
 --      section since the version (they used to abort the restore with 23505).
---   2. Sections and blocks hidden on every device stay in the snapshot with
---      their visibility, so a restore brings them back. The build drops them
---      (src/lib/validate-v3.ts) and so does snapshot_media_paths().
+--   2. Sections and blocks hidden on every device stay in the STORED snapshot
+--      (publish_runs) with their visibility, so a restore brings them back.
+--      They are never public: get_published_content() strips them, and so do
+--      snapshot_media_paths() and the build (src/lib/validate-v3.ts).
 --   3. snapshot_media_paths() keeps only keys that are files in the library.
 --   4. One safe-href rule (SAFE_HREF in schema-v3.ts) for the Markdown import.
 --   5. Events carry the page slug; stats_top_pages() groups page views by page.
@@ -194,6 +195,22 @@ begin
     'works', base -> 'works'
   );
 end;
+$$;
+
+-- The live snapshot for the public build (anon), as in 20261025000300_publish.sql,
+-- minus the sections and blocks hidden on every device: hidden means private.
+-- Editors read the full stored version through published_snapshots (restore).
+create or replace function public.get_published_content()
+returns jsonb
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select public.snapshot_strip_hidden(r.snapshot) from public.publish_runs r
+  where r.status <> 'failed'
+  order by r.requested_at desc, r.id desc
+  limit 1;
 $$;
 
 -- ---------------------------------------------------------------------------

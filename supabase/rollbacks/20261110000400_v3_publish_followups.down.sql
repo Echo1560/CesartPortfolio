@@ -271,6 +271,20 @@ begin
 end;
 $$;
 
+-- From 20261025000300_publish.sql.
+create or replace function public.get_published_content()
+returns jsonb
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select r.snapshot from public.publish_runs r
+  where r.status <> 'failed'
+  order by r.requested_at desc, r.id desc
+  limit 1;
+$$;
+
 drop function if exists public.snapshot_strip_hidden(jsonb);
 drop function if exists public.json_visible_somewhere(jsonb);
 drop function if exists public.is_safe_href(text);

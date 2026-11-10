@@ -267,14 +267,14 @@ Palette = { background, surface, text, muted, accent, accentContrast, border, fo
 - **Transition.** `site` is a superset of the v2 `Site`, so the v2 build keeps working on a v3 snapshot until the stage-2 loader switches to v3 (`npm run test:parity` proves it). When stage 7 retires the v2 forms, a migration drops the v2-only fields from `site` and this section changes.
 - **Media.** Every `MediaRef` is resolved: `src`/`poster` are bucket keys, `alt` is the ref's or the library default, `width`/`height` come from the ref or the library row. Publish fails with `PT422` if a file is missing, has no alt text or no dimensions, or a video has no poster. `snapshot_media_paths()` collects every `src`, `poster` and `ogImage` of what the build renders (`snapshot_strip_hidden()`), keeping only keys that are files in `public.media`; only those become readable by anon.
 - **References the database does not check.** A nav or button `Link` to a page that is not in the snapshot, and `workIds`, `categoryIds` or `Link.workId` that are not in `works`, are **skipped by the renderer** (never a build error). The editor should warn about them.
-- **Visibility.** Every section and block is in the snapshot with its `visibility`, even when it is hidden on every device, so restoring a version brings it back. The build drops the ones hidden everywhere (`withoutHidden()` in `validate-v3.ts`, before the media check) and hides the rest per breakpoint with CSS classes (no JS).
+- **Visibility.** Every section and block is in the **stored** version (`publish_runs.snapshot`, `published_snapshots`, editors only) with its `visibility`, even when it is hidden on every device, so restoring a version brings it back. Hidden-everywhere items are **never served publicly**: `get_published_content()` strips them, and their media is not in `media_paths`. The build drops the ones hidden everywhere (`withoutHidden()` in `validate-v3.ts`, before the media check) and hides the rest per breakpoint with CSS classes (no JS).
 - **Preview.** `build_content_v3(false)` (editors) returns the same shape with every page (any status) and every non-archived work.
 
 ## 6. RPCs (PostgREST `POST /rest/v1/rpc/<name>`)
 
 | Function | Caller | Does |
 |---|---|---|
-| `get_published_content()` | anon, authenticated | unchanged: the live snapshot (now v3) |
+| `get_published_content()` | anon, authenticated | the live snapshot (now v3) **without** sections and blocks hidden on every device (`snapshot_strip_hidden()`) |
 | `build_content_v3(p_published_only boolean = true)` | editor (RLS) | assembles snapshot v3 from the drafts; `false` = preview |
 | `create_publish_run()` | editor | as v2 (errors `42501`, `PT409`, `PT422`), now freezing snapshot v3. Also needs a home page. |
 | `restore_published_snapshot(p_run_id uuid)` | editor | copies a **v3** version back into the **draft**; it does not publish. See below. Errors: `42501` not an editor, `PT404` unknown or not succeeded, `PT422` a v2 version or it uses media deleted since. Logged as `restore` in `activity_log`. |

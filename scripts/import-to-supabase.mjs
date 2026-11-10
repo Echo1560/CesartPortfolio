@@ -18,9 +18,9 @@
  *      default theme and a home page with sections (docs/V3-CONTRACTS.md §7).
  *      Only once: when the project already has pages, the v3 draft is left as
  *      it is (edit it in the visual editor instead).
- *   5. with --publish: validates build_content_v3(true) like the build does and
- *      stores it as a `succeeded` publish run, unless the live snapshot already
- *      equals it
+ *   5. with --publish: validates the shape of build_content_v3(true) and stores
+ *      it as a `succeeded` publish run, unless the live snapshot already equals
+ *      it (compared without hidden sections, as get_published_content() serves it)
  *
  * The service-role key bypasses RLS. It is read from the environment only
  * (SUPABASE_SERVICE_ROLE_KEY in the shell, for this command only). It does not
@@ -250,13 +250,16 @@ console.log(migrated ? '→ v3: created the default theme and the home page from
 if (PUBLISH) {
   const snapshot = await rpc('build_content_v3', { p_published_only: true });
   try {
-    validateSnapshotV3(snapshot, fileExists);
+    // Shape only: media may exist only in Storage (uploaded in the editor), and
+    // snapshot_media_paths() already limits public keys to library files.
+    validateSnapshotV3(snapshot, () => true);
   } catch (error) {
     fail(`the v3 snapshot does not validate, nothing was published:\n${error.message}`);
   }
   const live = await rpc('get_published_content');
   const canonical = (v) => JSON.stringify(v, (_k, x) => (x && typeof x === 'object' && !Array.isArray(x) ? Object.fromEntries(Object.entries(x).sort()) : x));
-  if (live && canonical(live) === canonical(snapshot)) {
+  const served = await rpc('snapshot_strip_hidden', { p_snapshot: snapshot });
+  if (live && canonical(live) === canonical(served)) {
     console.log('→ publish: the live snapshot already matches, nothing to do');
   } else {
     await rest('POST', 'publish_runs', '', {

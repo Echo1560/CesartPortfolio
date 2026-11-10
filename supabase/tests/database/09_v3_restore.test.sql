@@ -7,7 +7,7 @@
 -- Users come from seed.sql: Cesart (editor).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(28);
+select plan(33);
 
 -- ids used below
 --   pages:    c1 commissions (in the version), c2 news (published later), c3 notes (draft), c4 draft taking the slug
@@ -62,6 +62,23 @@ select is(
   1,
   'snapshot_strip_hidden() drops it, as the build does'
 );
+
+-- Hidden means private: anon never gets hidden-everywhere items, editors keep them for restore.
+select set_config('request.jwt.claims', '{"role": "anon"}', true);
+set local role anon;
+select ok(public.get_published_content()::text like '%00000000-0000-4000-8000-0000000000d1%', 'anon reads version A (visible section)');
+select ok(public.get_published_content()::text not like '%00000000-0000-4000-8000-0000000000d2%', 'anon does not get the section hidden on every device');
+select ok(public.get_published_content()::text not like '%00000000-0000-4000-8000-0000000000e3%', 'anon does not get the block hidden on every device');
+select ok(public.get_published_content()::text not like '%00000000-0000-4000-8000-0000000000e4%', 'anon does not get the blocks of a hidden section');
+reset role;
+select set_config('request.jwt.claims', '{"sub": "11111111-1111-4111-8111-111111111111", "role": "authenticated"}', true);
+set local role authenticated;
+select ok(
+  (select snapshot::text from public.published_snapshots where id = (select id from version_a)) like '%00000000-0000-4000-8000-0000000000d2%'
+  and (select snapshot::text from public.published_snapshots where id = (select id from version_a)) like '%00000000-0000-4000-8000-0000000000e3%',
+  'editors still see hidden items in the stored version (for restore)'
+);
+reset role;
 
 -- ===========================================================================
 -- snapshot_media_paths(): library files of what the build renders
