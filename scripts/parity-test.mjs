@@ -12,7 +12,8 @@
  *   3. v2 → v3: the Supabase build (v2 seed converted by migrate_v2_to_v3())
  *      still has every v2 page (home, 404, each work) and the v2 home sections.
  *   4. compare both trees: same files, same HTML. Hashes in /_astro/ asset
- *      names are ignored, so only content and structure count.
+ *      names and database ids (uuids) are ignored, so only content and
+ *      structure count.
  *   5. a build pointed at a closed port must exit non-zero and name the cause,
  *      and `astro build` must then refuse to run without a prepared snapshot.
  *   6. the Supabase build must not have changed any tracked file in content/.
@@ -78,6 +79,20 @@ function files(dir) {
 // `_astro/name.Hash.ext` and `_astro/name.Hash_Variant.ext` → `_astro/name.ext`
 const unhash = (s) => s.replace(/(_astro\/[^"'\s,)?]+?)\.[A-Za-z0-9_-]{8}(?:_[A-Za-z0-9_-]+)?\.([a-z0-9]+)/g, '$1.$2');
 
+// Page, section and media ids are database keys (gen_random_uuid), so the
+// fixture in content/ and a freshly seeded database never share them. Replace
+// each id (and the `s-<8 hex>-title` heading ids built from one) by its order
+// of first appearance: structure must still match, key values may not.
+const ID = /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b|\bs-[0-9a-f]{8}-title\b/g;
+function unkey(s) {
+  const seen = new Map();
+  return s.replace(ID, (m) => {
+    const key = m.startsWith('s-') ? m.slice(2, 10) : m.slice(0, 8);
+    if (!seen.has(key)) seen.set(key, seen.size);
+    return m.startsWith('s-') ? `s-#${seen.get(key)}-title` : `id#${seen.get(key)}`;
+  });
+}
+
 function firstDifference(a, b) {
   const la = a.split('\n');
   const lb = b.split('\n');
@@ -117,10 +132,10 @@ check('the migrated home page has the v2 sections (featured, work, about, contac
 // Same HTML.
 const pages = files(join(out, 'local')).filter((f) => f.endsWith('.html'));
 for (const page of pages) {
-  const a = unhash(readFileSync(join(out, 'local', page), 'utf8'));
+  const a = unkey(unhash(readFileSync(join(out, 'local', page), 'utf8')));
   let b;
   try {
-    b = unhash(readFileSync(join(out, 'supabase', page), 'utf8'));
+    b = unkey(unhash(readFileSync(join(out, 'supabase', page), 'utf8')));
   } catch {
     check(`${page} is identical`, false, '  missing from the supabase build');
     continue;

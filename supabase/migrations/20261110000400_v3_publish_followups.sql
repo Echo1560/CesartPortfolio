@@ -92,13 +92,13 @@ language sql
 immutable
 set search_path = ''
 as $$
-  select case when jsonb_typeof(p_snapshot -> 'pages') <> 'array' then p_snapshot
+  select case when jsonb_typeof(p_snapshot -> 'pages') is distinct from 'array' then p_snapshot
   else jsonb_set(p_snapshot, '{pages}', (
     select coalesce(jsonb_agg(
-             case when jsonb_typeof(pg -> 'sections') <> 'array' then pg
+             case when jsonb_typeof(pg -> 'sections') is distinct from 'array' then pg
              else jsonb_set(pg, '{sections}', (
                select coalesce(jsonb_agg(
-                        case when jsonb_typeof(s -> 'blocks') <> 'array' then s
+                        case when jsonb_typeof(s -> 'blocks') is distinct from 'array' then s
                         else jsonb_set(s, '{blocks}', (
                           select coalesce(jsonb_agg(b order by bo), '[]'::jsonb)
                           from jsonb_array_elements(s -> 'blocks') with ordinality as bx(b, bo)
