@@ -6,6 +6,8 @@ const HOME = '/CesartPortfolio/';
 const works: { slug: string }[] = JSON.parse(readFileSync('content/works.json', 'utf8'));
 
 async function blocking(page: Page): Promise<string[]> {
+  // Scroll reveals fade in over ~640ms; axe would read the half-faded colour as low contrast. Wait for them to settle.
+  await page.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished.catch(() => undefined))));
   const { violations } = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
   return violations
     .filter((v) => v.impact === 'serious' || v.impact === 'critical')

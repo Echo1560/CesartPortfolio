@@ -200,7 +200,7 @@ Every successful publish is kept as a **version**. If you want the site back the
 3. Confirm. This copies that version's pages, sections, menu, footer and styles back into your **draft**. It does not change the live site yet.
 4. Look over the pages in the editor, then click **Publish**.
 
-Restoring never deletes anything. Pages that were published since then become **Hidden**, so you can bring them back. Works, categories, social links and your media library are not changed. (If you do not see a **Restore** button yet, ask Echo: it is being added.)
+Restoring never deletes anything. Pages that were published since then become **Hidden**, so you can bring them back. Works, categories, social links and your media library are not changed.
 
 ## Reading stats
 

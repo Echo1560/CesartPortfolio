@@ -40,3 +40,26 @@ test('an in-flight run disables the publish button', async ({ page }) => {
   await expect(page.getByRole('status').getByText('Queued')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Publish', exact: true })).toBeDisabled();
 });
+
+test('restoring a version asks first, restores into the draft and does not publish', async ({ page }) => {
+  const backend = newBackend();
+  const version = (n: number, extra: object = {}) => ({ id: `run-${n}`, version: n, schema_version: 3, published_at: `2026-05-0${n}T10:00:00Z`, published_by_name: 'Cesart', is_live: false, ...extra });
+  backend.tables['published_snapshots'] = [version(1), version(2, { is_live: true })];
+  const restored: unknown[] = [];
+  backend.rpc['restore_published_snapshot'] = (args) => (restored.push(args), null);
+  await mountAdmin(page, backend, '#/publish');
+
+  await expect(page.getByText('v2')).toBeVisible();
+  await page.getByRole('button', { name: 'Restore version 1' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Restore version 1?' });
+  await expect(dialog.getByText('does not publish')).toBeVisible();
+
+  await dialog.getByRole('button', { name: 'Cancel' }).click();
+  expect(restored).toHaveLength(0);
+
+  await page.getByRole('button', { name: 'Restore version 1' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Restore to draft' }).click();
+  await expect(page.getByText('Version 1 restored to the draft')).toBeVisible();
+  expect(restored).toEqual([{ p_run_id: 'run-1' }]);
+  expect(backend.calls.filter((c) => c.name === 'publish' && c.method === 'POST')).toHaveLength(0);
+});
