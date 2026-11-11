@@ -72,6 +72,17 @@ describe('themeToCss', () => {
     expect(() => themeToCss(bad)).toThrow();
   });
 
+  // The CSS is inlined into a <style> (Base.astro, editor canvas): no token may close it.
+  it.each<[string, (t: ThemeTokens) => void]>([
+    ['a colour', (t) => { t.colors.light.text = '#000000</style><script>alert(1)</script>' as never; }],
+    ['a dark-palette colour', (t) => { t.colors.dark = { ...t.colors.light, background: '#000;}</style>' as never }; }],
+    ['a font id', (t) => { t.typography.bodyFont = "inter'}</style><script>" as never; }],
+    ['a heading case', (t) => { t.typography.headingCase = 'none;}</style>' as never; }],
+    ['a number', (t) => { t.typography.lineHeight = '1;}</style>' as never; }],
+  ])('rejects %s that tries to break out of the <style>', (_, edit) => {
+    expect(() => themeToCss(withTokens(edit))).toThrow();
+  });
+
   it('is deterministic', () => {
     expect(themeToCss(DEFAULT_THEME_TOKENS)).toBe(themeToCss(structuredClone(DEFAULT_THEME_TOKENS)));
   });

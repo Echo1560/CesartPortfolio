@@ -83,6 +83,52 @@ test('bold text is stored as a mark, never as HTML', async ({ page }) => {
   expect(JSON.stringify(body)).not.toContain('<');
 });
 
+test('markup that lands in the canvas is saved as JSON: unsafe links and tags are dropped', async ({ page }) => {
+  const backend = seeded();
+  await mountAdmin(page, backend);
+  const about = HOME.sections.find((s) => s.type === 'about')!;
+  const prose = canvas(page).locator(`[data-section-id="${about.id}"] .prose`);
+  await prose.click();
+  // Whatever the browser or an extension puts into the editable DOM goes through richOf().
+  await page.evaluate((id) => {
+    const frame = document.querySelector<HTMLIFrameElement>('iframe[title="Page canvas"]')!;
+    const el = frame.contentDocument!.querySelector<HTMLElement>(`[data-section-id="${id}"] .prose`)!;
+    el.innerHTML =
+      '<p>ok <a href="https://example.com/a">safe</a> <a href="javascript:alert(1)">js</a> <a href="//evil.example">proto</a>' +
+      '<img src="x" onerror="alert(1)"><script>alert(1)</script></p><iframe src="https://evil.example"></iframe>';
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  }, about.id);
+  await page.keyboard.press('Escape');
+  await expect.poll(() => sectionWrites(backend).filter((w) => w.query['id'] === `eq.${about.id}`).length).toBeGreaterThanOrEqual(1);
+  await expect(page.locator('.editor__save')).toHaveText('All changes saved');
+
+  const body = sectionWrites(backend).filter((w) => w.query['id'] === `eq.${about.id}`).at(-1)!.body as { content: { body: unknown } };
+  const json = JSON.stringify(body);
+  expect(json).not.toMatch(/javascript:|evil\.example|onerror|<img|<script|<iframe/i);
+  expect(json).toContain('"href":"https://example.com/a"');
+  expect(json).not.toContain('<');
+  await expect(canvas(page).locator('script, iframe, img[onerror], a[href^="javascript"]')).toHaveCount(0);
+});
+
+test('pasting HTML into the canvas inserts plain text only', async ({ page }) => {
+  const backend = seeded();
+  await mountAdmin(page, backend);
+  const sub = canvas(page).locator('.hero__sub');
+  await sub.click();
+  await page.keyboard.press('Control+A');
+  await page.evaluate(() => {
+    const doc = document.querySelector<HTMLIFrameElement>('iframe[title="Page canvas"]')!.contentDocument!;
+    const dt = new DataTransfer();
+    dt.setData('text/html', '<a href="javascript:alert(1)">evil</a><img src=x onerror=alert(1)>');
+    dt.setData('text/plain', 'pasted text');
+    doc.querySelector('.hero__sub')!.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+  });
+  await page.keyboard.press('Escape');
+  await saved(page, backend);
+  const body = sectionWrites(backend).at(-1)!.body as { content: { subheading: unknown } };
+  expect(body.content.subheading).toEqual([{ type: 'text', text: 'pasted text' }]);
+});
+
 test('clicking selects, the panel edits settings, and Escape deselects', async ({ page }) => {
   const backend = seeded();
   await mountAdmin(page, backend);
