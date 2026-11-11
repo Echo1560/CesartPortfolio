@@ -44,7 +44,6 @@ function siteCard(ctx: ViewContext): HTMLElement {
   return card('Site settings', stampText(s, draft), fields.title!.el, fields.description!.el, fields.author!.el, fields.lang!.el, ogThumb, ogError, save);
 }
 
-
 function socialsCard(ctx: ViewContext): HTMLElement {
   const { draft } = ctx;
   const email = textInput(draft.site.contact_email, { type: 'email' });
@@ -105,7 +104,6 @@ function socialsCard(ctx: ViewContext): HTMLElement {
   };
   return card('Contact and social links', stampText(draft.site, draft), fields.email!.el, h('h3', {}, 'Social links'), listEl, socialErrors, h('div', { class: 'row' }, add, save));
 }
-
 
 function categoriesCard(ctx: ViewContext): HTMLElement {
   const { draft } = ctx;

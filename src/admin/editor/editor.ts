@@ -292,6 +292,8 @@ export async function renderEditor(el: HTMLElement, opts: { slug?: string; email
     if (k === 's') {
       e.preventDefault();
       void store.flush();
+    } else if (el.classList.contains('editor--preview')) {
+      return; // read-only preview: no undo/redo
     } else if (!typing && k === 'z') {
       e.preventDefault();
       if (e.shiftKey) store.redo();
