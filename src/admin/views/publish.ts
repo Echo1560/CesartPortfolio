@@ -44,7 +44,7 @@ export async function renderPublish(el: HTMLElement, _ctx: ViewContext): Promise
   const statusEl = h('div', { class: 'publish-status', role: 'status', 'aria-live': 'polite' });
   const history = h('ul', { class: 'list' });
   const button = h('button', { type: 'button', class: 'btn' }, 'Publish');
-  const note = h('p', { class: 'field__hint' }, 'Publishing freezes the current draft. The live site updates in about 1â€“2 minutes.');
+  const note = h('p', { class: 'field__hint' }, 'Publishing freezes the current draft. The live site updates in about 1–2 minutes.');
   const versionList = h('ul', { class: 'list' });
   const siteLink = h('a', { href: SITE_URL, target: '_blank', rel: 'noopener' }, 'Open the live site');
 
@@ -56,7 +56,7 @@ export async function renderPublish(el: HTMLElement, _ctx: ViewContext): Promise
       append(statusEl, [
         h('p', {}, h('span', { class: `tag tag--run-${latest.status}` }, LABEL[latest.status]), ' ', `Requested ${formatDate(latest.requested_at)}${latest.requested_by_name ? ` by ${latest.requested_by_name}` : ''}`),
         latest.finished_at ? h('p', { class: 'stamp' }, `Finished ${formatDate(latest.finished_at)}`) : null,
-        inFlight(latest) ? h('p', { class: 'field__hint' }, 'Live in about 1â€“2 minutes. This page updates by itself.') : null,
+        inFlight(latest) ? h('p', { class: 'field__hint' }, 'Live in about 1–2 minutes. This page updates by itself.') : null,
         latest.status === 'failed' ? h('p', { class: 'field__error' }, latest.error ?? 'The publish failed. The site stays on the previous version.') : null,
         latest.github_run_url ? h('a', { href: latest.github_run_url, target: '_blank', rel: 'noopener' }, 'Build log') : null,
       ]);
@@ -65,7 +65,7 @@ export async function renderPublish(el: HTMLElement, _ctx: ViewContext): Promise
     clear(history);
     if (runs.length === 0) history.appendChild(h('li', { class: 'empty' }, 'No publish history.'));
     for (const r of runs) {
-      history.appendChild(h('li', { class: 'list__item' }, h('span', { class: `tag tag--run-${r.status}` }, LABEL[r.status]), h('span', { class: 'grow' }, `${formatDate(r.requested_at)}${r.requested_by_name ? ` Â· ${r.requested_by_name}` : ''}`), r.error ? h('span', { class: 'field__hint' }, r.error) : null));
+      history.appendChild(h('li', { class: 'list__item' }, h('span', { class: `tag tag--run-${r.status}` }, LABEL[r.status]), h('span', { class: 'grow' }, `${formatDate(r.requested_at)}${r.requested_by_name ? ` · ${r.requested_by_name}` : ''}`), r.error ? h('span', { class: 'field__hint' }, r.error) : null));
     }
   };
 
