@@ -79,7 +79,7 @@ async function load(): Promise<State> {
 // ---- dialogs ----------------------------------------------------------------
 
 /** A modal confirmation. Resolves true only when the editor confirms. */
-function confirmDialog(title: string, message: string, confirm: string, opener: Element | null): Promise<boolean> {
+export function confirmDialog(title: string, message: string, confirm: string, opener: Element | null): Promise<boolean> {
   return new Promise((resolve) => {
     let yes = false;
     const dialog = h('dialog', { class: 'picker', 'aria-labelledby': 'confirm-title' });
