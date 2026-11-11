@@ -1,22 +1,23 @@
 # Architecture
 
-The public site is a static Astro build on GitHub Pages. Every word, image and section on it comes from one validated `Content` object (`src/lib/schema.ts`). Pages and components never read content directly: they go through the data layer in `src/lib/`. Since v2 that object comes from Supabase. The artist edits it in an in-site dashboard and freezes it with a Publish step. The v1 `content/` folder is still a supported source for dev, tests and the fallback build.
+The public site is a static Astro build on GitHub Pages. Every word, image and section on it comes from one validated **snapshot** (v3: site, theme, pages with their sections and blocks, and works; `src/lib/schema-v3.ts`). Pages and components never read content directly: they go through the data layer in `src/lib/`. The snapshot comes from Supabase. The artist edits the draft in a visual editor at `/CesartPortfolio/admin/` and freezes it with a Publish step. The `content/` folder (the v1 JSON plus `snapshot-v3.json`) is still the source for dev, tests and the fallback build.
 
-The exact contracts (tables, mapping to `schema.ts`, storage, RPCs, Edge Functions, events, the `load()` switch) are in [`V2-CONTRACTS.md`](V2-CONTRACTS.md). v3 (the visual editor, TITA-90) adds pages, sections, blocks and a theme on top of it: [`V3-CONTRACTS.md`](V3-CONTRACTS.md), with the zod contract in `src/lib/schema-v3.ts`. Until the v3 loader lands, the build still renders the v2 `Site`, which snapshot v3 keeps as a superset (V3-CONTRACTS §5). This file explains how the pieces fit together. Go-live steps: [`GO-LIVE.md`](GO-LIVE.md). Editor guide: [`ADMIN.md`](ADMIN.md).
+Contracts: [`V3-CONTRACTS.md`](V3-CONTRACTS.md) for pages, sections, blocks, the theme, snapshot v3, restore and the v2 → v3 migration; [`V2-CONTRACTS.md`](V2-CONTRACTS.md) for what v3 builds on and keeps (works, media, storage, accounts, publish runs, Edge Functions, events). This file explains how the pieces fit together. Go-live and upgrade steps: [`GO-LIVE.md`](GO-LIVE.md). Editor guide: [`ADMIN.md`](ADMIN.md).
 
 ## Two data flows
 
 **Build time (public site).** While a visitor browses, nothing on the public site talks to the database except the analytics beacon.
 
 ```
-CONTENT_SOURCE=local (default)          CONTENT_SOURCE=supabase  (scripts/prepare-content.ts, before astro build)
-content/site.json  ┐                    get_published_content()  (anon key, one request)
-content/works.json ├──────┐             + download every object it references from the `media` bucket → content/media/
-content/media/**   ┘      │             → generated/content.json
-                          ▼                          │
-               src/lib/validate.ts ◄─────────────────┘
-                          ▼
-               src/lib/content.ts (getSite, getWorks…) ─► pages / components ─► dist/ ─► GitHub Pages
+CONTENT_SOURCE=local (default)            CONTENT_SOURCE=supabase  (scripts/prepare-content.ts, before astro build)
+content/snapshot-v3.json ┐                get_published_content()  (anon key, one request; must be version 3)
+content/site.json        ├────┐           + download every object it references from the `media` bucket → content/media/
+content/works.json       │    │           → generated/content.json
+content/media/**         ┘    │                        │
+                              ▼                        │
+               src/lib/validate-v3.ts ◄────────────────┘
+                              ▼
+               src/lib/content.ts (getSnapshot) ─► src/components/render/ (Preact, rendered by Astro) ─► dist/ ─► GitHub Pages
                                                               │
                src/lib/media.ts (resolveMedia) ◄──────────────┤
                src/lib/track.ts (track) ◄── client scripts ───┘──► POST /functions/v1/track (in the visitor's browser)
@@ -29,7 +30,7 @@ editor's browser ── supabase-js (anon key + editor JWT) ──► PostgREST:
                                                          ──► Storage: `media` bucket (uploads)         ├ every call checked by RLS
                                                          ──► Edge Functions: publish, publish-status,  │
                                                              invite-editor, remove-editor             ┘
-Publish ─► `publish` ─► create_publish_run(): build_content(true) frozen into publish_runs.snapshot
+Publish ─► `publish` ─► create_publish_run(): build_content_v3(true) frozen into publish_runs.snapshot
                     └─► GitHub repository_dispatch `publish` ─► deploy.yml builds with CONTENT_SOURCE=supabase
                                                                └─► reports building / succeeded / failed to `publish-status`
 ```
@@ -38,14 +39,16 @@ Draft and live content are separate. Editors only write **draft tables**. The si
 
 ## Content schema (`src/lib/schema.ts`)
 
+The v2 shapes, which v3 reuses for works, media and the site defaults. The v3 additions (pages, sections, blocks, theme, snapshot) are in `src/lib/schema-v3.ts` and [V3-CONTRACTS.md](V3-CONTRACTS.md) §2-5.
+
 Zod schemas and the TypeScript types inferred from them. These are the only definition of the content shape.
 
 | Type | Where | Notes |
 |---|---|---|
-| `Site` | `content/site.json` | `meta`, `hero`, `about` (`body` is Markdown), `contact`, `categories`, `layout`. Optional `placeholder: true`. |
+| `Site` | `content/site.json` | `meta`, `hero`, `about` (`body` is Markdown), `contact`, `categories`, `layout`. Optional `placeholder: true`. v3 reads only `meta` (SEO defaults), `categories` and `placeholder`; the rest is v2 data kept for the migration and the parity test. |
 | `Work` | `content/works.json` (array) | `id`, `slug` (unique, kebab-case, stable), `title`, `year?`, `categoryId`, `tags`, `description`, `featured?`, `order?`, `placeholder?`, `media`, `gallery?`. |
 | `Media` | inside both | `type: image \| animated \| video \| embed`, `src`, `alt` (required, non-empty), `width`, `height`, `poster?` (required for `video`), `loop?`, `provider?` (`youtube \| vimeo`, required for `embed`). |
-| `Layout` | `site.json → layout` | `sections[]` of `{id, visible, options?}`. |
+| `Layout` | `site.json → layout` | v2 only: `sections[]` of `{id, visible, options?}`. The v3 home page replaces it. |
 
 Media paths are relative to `content/media/`. For `embed`, `src` is the YouTube or Vimeo page URL.
 
@@ -78,6 +81,7 @@ In `supabase` mode the build fails with `ContentSourceError` when an env var is 
 
 | Function | Returns |
 |---|---|
+| `getSnapshot()` | `Promise<SnapshotV3>`, validated by `validateSnapshotV3()`. **What the public pages render.** |
 | `getSite()` | `Promise<Site>` |
 | `getLayout()` | `Promise<Layout>` |
 | `getCategories()` | `Promise<Category[]>` |
@@ -85,6 +89,8 @@ In `supabase` mode the build fails with `ContentSourceError` when an env var is 
 | `getWork(slug)` | `Promise<Work \| undefined>` |
 | `getFeaturedWorks()` | Works for the featured section, in `options.workIds` order and capped by `limit`. Falls back to `featured: true` works. |
 | `renderMarkdown(md)` | Sanitized HTML string (for `about.body`). Editors write this text in supabase mode, so the output is allowlisted (`p, br, em, strong, a, ul, ol, li, h2–h4, blockquote, code, pre`; links only `http`, `https`, `mailto`). |
+
+The v2 getters below `getSnapshot()` still work on the v2 part of the snapshot. No page uses them any more; the unit tests do.
 
 Content is loaded and validated once per build and then cached.
 
@@ -124,17 +130,33 @@ The public site renders the v3 snapshot ([V3-CONTRACTS.md](V3-CONTRACTS.md) §5)
 - **Fonts** come from `@fontsource/*` and are copied to `assets/fonts/` only when the theme uses them. The default theme ships none.
 - **Widths:** a section with no `width` keeps the v2 container (same as `wide`).
 
-## Layout config
+## Dashboard and visual editor (`src/admin/`)
 
-`site.json → layout.sections` is an ordered list. The home page renders the sections in that order and skips any with `visible: false`.
+`src/pages/admin/index.astro` is a static, `noindex` page that loads `src/admin/main.ts`: the auth gate (`auth.ts`: login, password reset, invite acceptance), the `is_editor()` check, and a hash router. The visual editor is the default route (`#/editor/<page-slug>`). The other views are reached from its **Account** menu:
 
-| Section | Options |
-|---|---|
-| `hero` | none |
-| `featured` | `workIds: string[]`, `limit?: number` |
-| `grid` | `columns?: {sm, md, lg}`, `masonry?: boolean`, `showFilters?: boolean` |
-| `about` | none |
-| `contact` | none |
+| Route | View | Edits |
+|---|---|---|
+| `#/editor` | `editor/` | pages, sections, blocks, theme (below) |
+| `#/pages` | `views/pages.ts` | page list, status, slugs, SEO, home page, `site.nav`, `site.footer` |
+| `#/works` | `views/works.ts` | `works`, their cover and gallery placements |
+| `#/settings` | `views/settings.ts` | `site.meta_*` and `og_media_id` (SEO defaults), `contact_email` (default for new contact sections), `socials`, `categories` |
+| `#/media` | `views/media.ts` | the media library and uploads |
+| `#/publish` | `views/publish.ts` | publish runs and status |
+| `#/stats`, `#/accounts`, `#/activity` | `views/*.ts` | stats, editor accounts, the activity log |
+
+The v2 form views (Content, Layout and the classic preview) were retired in TITA-105: the editor covers what they did. Their `site` columns (`hero_*`, `about_*`, `contact_heading`, `contact_cta_label`) and the `layout` / `layout_featured_works` tables stay in the database, read only by the v2 → v3 migration and the parity test (V3-CONTRACTS §2).
+
+**Editor** (`src/admin/editor/`):
+
+- **Canvas** (`canvas.tsx`): the shared Preact section components rendered with the draft (`build_content_v3(false)`) and the theme CSS into a sandboxed same-origin iframe, at desktop, tablet or phone width. Media uses signed Storage URLs. **Preview** mode drops the editing chrome and makes nothing editable.
+- **Overlay** (`overlay.ts`): the **+** between sections, the section and block toolbars, "+ Block" per column and pointer-based drag reordering, drawn in its own layer next to `<body>`. Every action is also a labelled button in the panel, and Alt+Up / Alt+Down moves the selection.
+- **Inline text** (`inline.ts`): headings, captions and paragraphs are `contenteditable`; the DOM is read back into the contract's rich-text JSON (bold, italic, link, h2-h4, lists). No HTML is stored, and paste is plain text.
+- **Side panel** (`panel.ts`): variant, alignment, width, spacing, colour scheme, background image, columns, anchor, per-device visibility, media and alt text, work sources. Forms are generated from the zod settings schemas. **Pickers** (`picker.ts`, `defaults.ts`): the 11 section types and 8 block types with default content. **Page templates** (`page-templates.ts`).
+- **Site styles** (`styles-panel.ts`): theme presets, palette (with optional dark mode), typography, buttons, links, radius, spacing and motion, validated with `themeTokensSchema`. Contrast pairs are checked with `src/lib/contrast.ts` (WCAG AA).
+- **Store** (`store.ts`): one state with undo/redo, a debounced autosave (1.2 s) of changed rows validated with `sectionDraftSchema` / `blockDraftSchema` (the audit trigger sets `updated_by`), and a notice when another editor changed the same page since load (last write wins). New rows are inserted, removed rows deleted, and a page's positions written in one upsert (the position constraints are deferred).
+- **Publish** flushes the autosave, calls the `publish` function and follows the run with the same status poll as the Publish view.
+
+The editor bundle is admin-only. Public pages render the same components with Astro and no `client:*` directive, so visitors get no editor or Preact code.
 
 ## Track hook (`src/lib/track.ts`)
 
@@ -149,13 +171,13 @@ In v1 it did nothing. Since v2 it sends one `navigator.sendBeacon` (`text/plain`
 
 ## Access model (Row Level Security)
 
-All authorization lives in Postgres (`supabase/migrations/20261025000500_rls.sql` and `…0600_storage.sql`). The anon key in the site and the dashboard bundle is public by design. It can only do what the policies allow.
+All authorization lives in Postgres (`supabase/migrations/20261025000500_rls.sql`, `…0600_storage.sql`, and the v3 policies in `20261110000100_v3_content_model.sql`). The anon key in the site and the dashboard bundle is public by design. It can only do what the policies allow.
 
 | Caller | Can |
 |---|---|
 | anon (visitors, the build) | execute `get_published_content()`, and read Storage objects whose key is in the live snapshot (`is_published_media`). No table access at all. |
 | signed in, not an editor | nothing beyond anon. The dashboard signs them out. |
-| active editor (`is_editor()`) | read and write the draft tables, upload to and delete from the `media` bucket, preview (`build_content(false)`), `create_publish_run()`, read stats, the activity log and the editor list, and change their own display name. |
+| active editor (`is_editor()`) | read and write the draft tables (v3: `pages`, `sections`, `blocks`, `theme`), upload to and delete from the `media` bucket, preview (`build_content_v3(false)`), `create_publish_run()`, list versions (`published_snapshots`) and `restore_published_snapshot()`, read stats, the activity log and the editor list, and change their own display name. |
 | active owner (`is_owner()`) | everything an editor can, plus `set_editor_disabled`, `remove_editor` and inviting editors. Never on themselves, and never on the last active owner. |
 | service role | only inside Edge Functions (after they have verified the caller) and the one-off `npm run db:import`. Never in the site build, the bundle or GitHub. |
 
@@ -190,7 +212,7 @@ Payloads and error codes are in `supabase/functions/README.md`. Secrets: `GITHUB
 
 ## Deploy, keep-alive and CI
 
-- **`deploy.yml`** runs on a push to `main`, on `repository_dispatch: publish` and manually. With the Supabase secrets set, it builds with `CONTENT_SOURCE=supabase` and fails loudly when Supabase is unreachable or nothing is published. A push without the secrets builds the v1 content with a warning. For a publish, it reports progress to `publish-status`. After the build, `check:bundle` fails if `dist/` contains a service-role JWT, a secret key or a token.
+- **`deploy.yml`** runs on a push to `main`, on `repository_dispatch: publish` and manually. With the Supabase secrets set, it builds with `CONTENT_SOURCE=supabase` and fails loudly when Supabase is unreachable, nothing is published, or the live snapshot is not version 3 (see the v3 upgrade in GO-LIVE). A push without the secrets builds the local content with a warning. For a publish, it reports progress to `publish-status`. After the build, `check:bundle` fails if `dist/` contains a service-role JWT, a secret key or a token.
 - **`keep-alive.yml`** calls `get_published_content()` with the anon key every 3 days, so the free hosted project is not paused after a week without traffic. It does nothing until the secrets are set.
 - **`ci.yml`** runs the unit tests, the build, e2e and Lighthouse. It also runs the database job (pgTAP RLS and storage tests, API checks, parity), the Edge Function tests (GitHub mocked) and gitleaks.
 

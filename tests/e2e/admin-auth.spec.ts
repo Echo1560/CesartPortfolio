@@ -77,7 +77,7 @@ test('a non-editor is told why they were refused', async ({ page }) => {
 test('logging out returns to the login form', async ({ page }) => {
   const backend = newBackend();
   backend.tables = draftTables();
-  await mountAdmin(page, backend, '#/content');
+  await mountAdmin(page, backend, '#/settings');
   await page.getByRole('button', { name: 'Log out' }).click();
   await expect(page.getByRole('heading', { name: 'Dashboard login' })).toBeVisible();
 });
@@ -85,9 +85,11 @@ test('logging out returns to the login form', async ({ page }) => {
 test('the dashboard exposes every section in its navigation', async ({ page }) => {
   const backend = newBackend();
   backend.tables = draftTables();
-  await mountAdmin(page, backend, '#/content');
+  await mountAdmin(page, backend, '#/settings');
   const nav = page.getByRole('navigation', { name: 'Dashboard sections' });
-  for (const name of ['Visual editor', 'Content', 'Works', 'Layout', 'Media library', 'Preview', 'Publish', 'Stats', 'Accounts', 'Activity']) {
-    await expect(nav.getByRole('link', { name })).toBeVisible();
+  for (const name of ['Visual editor', 'Pages', 'Works', 'Settings', 'Media library', 'Publish', 'Stats', 'Accounts', 'Activity']) {
+    await expect(nav.getByRole('link', { name, exact: true })).toBeVisible();
   }
+  // The v2 form pages are retired: the visual editor replaces them.
+  for (const name of ['Content', 'Layout', 'Preview']) await expect(nav.getByRole('link', { name, exact: true })).toHaveCount(0);
 });
