@@ -66,6 +66,21 @@ test('editing a heading inline autosaves, survives a reload and Publish dispatch
   await expect.poll(() => backend.calls.map((c) => c.name)).toContain('publish');
 });
 
+test('Preview shows the page without editing chrome and Back to editing restores it', async ({ page }) => {
+  await mountAdmin(page, seeded());
+  const title = canvas(page).locator('.hero__title');
+  await expect(title).toHaveAttribute('contenteditable', 'true');
+  await page.getByRole('button', { name: 'Preview' }).click();
+  await expect(page.getByRole('button', { name: 'Back to editing' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(title).not.toHaveAttribute('contenteditable');
+  await expect(canvas(page).locator('#ed-layer')).toBeHidden();
+  await expect(page.getByRole('complementary', { name: 'Settings' })).toBeHidden();
+  await expect(page.getByRole('toolbar', { name: 'Text formatting' })).toBeHidden();
+  await page.getByRole('button', { name: 'Back to editing' }).click();
+  await expect(title).toHaveAttribute('contenteditable', 'true');
+  await expect(page.getByRole('complementary', { name: 'Settings' })).toBeVisible();
+});
+
 test('bold text is stored as a mark, never as HTML', async ({ page }) => {
   const backend = seeded();
   await mountAdmin(page, backend);

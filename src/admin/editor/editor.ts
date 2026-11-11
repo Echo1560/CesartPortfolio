@@ -77,6 +77,7 @@ export async function renderEditor(el: HTMLElement, opts: { slug?: string; email
   const flash = h('span', { class: 'editor__flash', role: 'status', 'aria-live': 'polite' });
   const saveState = h('span', { class: 'editor__save', role: 'status', 'aria-live': 'polite' });
   const stylesButton = h('button', { type: 'button', class: 'btn btn--ghost', 'aria-pressed': 'false', 'data-action': 'site-styles' }, 'Site styles');
+  const previewButton = h('button', { type: 'button', class: 'btn btn--ghost', 'aria-pressed': 'false', 'data-action': 'preview' }, 'Preview');
   const publishButton = h('button', { type: 'button', class: 'btn' }, 'Publish');
   const publishState = h('span', { class: 'editor__publish', role: 'status', 'aria-live': 'polite' });
   const menu = h(
@@ -96,7 +97,7 @@ export async function renderEditor(el: HTMLElement, opts: { slug?: string; email
     flash,
     h('span', { class: 'grow' }),
     stylesButton,
-    h('a', { class: 'btn btn--ghost', href: '#/preview' }, 'Preview'),
+    previewButton,
     publishButton,
     publishState,
     menu,
@@ -178,6 +179,14 @@ export async function renderEditor(el: HTMLElement, opts: { slug?: string; email
     onMedia: (_sel, slot, open) => panel.focusMedia(slot, open),
     onInsert: (index, opener) => void pickSection(store, index, opener),
     onAddBlock: (sectionId, column, opener) => void pickBlock(store, sectionId, column, opener),
+  });
+  previewButton.addEventListener('click', () => {
+    const on = previewButton.getAttribute('aria-pressed') !== 'true';
+    store.select(null);
+    canvas.setPreview(on);
+    el.classList.toggle('editor--preview', on);
+    previewButton.setAttribute('aria-pressed', String(on));
+    previewButton.textContent = on ? 'Back to editing' : 'Preview';
   });
   el.append(topbar, fmt, notice, h('div', { class: 'editor__body' }, h('div', { class: 'editor__canvas' }, stage), panelHost));
 
@@ -318,6 +327,7 @@ export async function renderEditor(el: HTMLElement, opts: { slug?: string; email
       window.removeEventListener('beforeunload', onUnload);
       document.removeEventListener('visibilitychange', onVisibility);
       off();
+      el.classList.remove('editor--preview');
       // Leaving the editor must not lose the last edits.
       void store.flush().finally(() => store.destroy());
       canvas.destroy();
