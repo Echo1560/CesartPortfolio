@@ -171,6 +171,23 @@ test('undo and redo walk back through edits', async ({ page }) => {
   await expect(canvas(page).locator('.sec--hero-split')).toBeVisible();
 });
 
+test('undo and redo shortcuts are ignored in Preview', async ({ page }) => {
+  const backend = seeded();
+  await mountAdmin(page, backend);
+  await canvas(page).locator('[data-section-type="hero"]').click({ position: { x: 5, y: 5 } });
+  await page.getByRole('complementary', { name: 'Settings' }).getByLabel('Layout variant').selectOption('split');
+  await expect(canvas(page).locator('.sec--hero-split')).toBeVisible();
+  await saved(page, backend);
+  const writes = sectionWrites(backend).length;
+  await page.getByRole('button', { name: 'Preview' }).click();
+  await page.locator('body').press('Control+z');
+  await expect(canvas(page).locator('.sec--hero-split')).toBeVisible();
+  await page.getByRole('button', { name: 'Back to editing' }).click();
+  await expect(canvas(page).locator('.sec--hero-split')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Undo' })).toBeEnabled();
+  expect(sectionWrites(backend)).toHaveLength(writes);
+});
+
 test('the device toggle resizes the canvas', async ({ page }) => {
   await mountAdmin(page, seeded());
   await page.getByRole('button', { name: 'Mobile width' }).click();
