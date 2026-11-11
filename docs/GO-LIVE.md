@@ -1,6 +1,9 @@
-# Go-live checklist (v2)
+# Go-live checklist
 
-These are the one-time steps that move the site from the v1 JSON files to the hosted Supabase backend and the dashboard. Do them in order. Until step 6 is done, pushes to `main` keep deploying the v1 content, so nothing breaks while you work.
+These are the one-time steps that move the site from the JSON files in `content/` to the hosted Supabase backend and the visual editor.
+
+- **First go-live** (no hosted project yet): do steps 1–9 in order. They set up v3 directly. Until step 6 is done, pushes to `main` keep deploying the local content, so nothing breaks while you work.
+- **The hosted project is already live on v2** (you did steps 1–9 before the visual editor existed): do [Upgrade a live v2 project to v3](#upgrade-a-live-v2-project-to-v3) instead.
 
 You need:
 
@@ -29,7 +32,7 @@ npx supabase link --project-ref <ref>   # asks for the database password
 npx supabase db push                    # applies supabase/migrations/*, in order
 ```
 
-`db push` applies only the migrations. It does **not** run `supabase/seed.sql`, so the local test accounts (`*@example.com`) never reach the hosted project. Check that the output lists the six `20261025000*` migrations and ends without an error. `npx supabase migration list` should then show them on both the local and remote side.
+`db push` applies only the migrations. It does **not** run `supabase/seed.sql`, so the local test accounts (`*@example.com`) never reach the hosted project. Check that the output lists the six `20261025000*` (v2) and the four `20261110000*` (v3) migrations and ends without an error. `npx supabase migration list` should then show them on both the local and remote side.
 
 ## 3. Auth settings
 
@@ -146,7 +149,7 @@ npm run db:import -- --hosted --publish
 Remove-Item Env:SUPABASE_SERVICE_ROLE_KEY, Env:SUPABASE_URL
 ```
 
-Expected output: `→ HOSTED project …`, the number of files uploaded, the draft counts, `→ publish: stored a succeeded publish run; the imported content is live`, and `✓ import complete`.
+Expected output: `→ HOSTED project …`, the number of files uploaded, the draft counts, `→ v3: created the default theme and the home page from the v2 content`, `→ publish: stored a succeeded publish run; the imported content is live`, and `✓ import complete`.
 
 **Never** put the service-role key in `.env`, a GitHub secret, a commit, or a chat. It bypasses every access rule. Close the terminal afterwards (or clear the variable, as above).
 
@@ -195,8 +198,8 @@ Check under **Accounts** in the dashboard that both people show as **owner · Ac
 
 1. **Deploy from Supabase:** GitHub → Actions → **Deploy to GitHub Pages** → Run workflow on `main`. It must pass with no *Supabase secrets missing* warning in the **Choose the content source** step (so it built from Supabase), and the bundle secret check must pass.
 2. **Public site:** open https://echo1560.github.io/CesartPortfolio/. Same pages as before, animations play, every work opens.
-3. **Dashboard:** open https://echo1560.github.io/CesartPortfolio/admin/ and log in. Every page loads without a red error.
-4. **Publish round trip:** change one small text (for example the hero subheading), click **Publish**, and watch it go **Queued → Running → Success** in 1–2 minutes. The **Build log** link opens the Actions run. Reload the public site and see the change. Change it back and publish again.
+3. **Editor:** open https://echo1560.github.io/CesartPortfolio/admin/ and log in. The visual editor shows the home page. Every view in the **Account** menu loads without a red error.
+4. **Publish round trip:** click a small text on the page (for example the hero subheading), change it, wait for *All changes saved*, click **Publish**, and watch it go **Queued → Running → Success** in 1–2 minutes. Reload the public site and see the change. Change it back and publish again.
 5. **Stats:** visit the public site from a phone and open a work. Within a minute, **Stats** for the last 7 days shows the page views and the work open.
 6. **Keep-alive:** Actions → **Keep Supabase alive** → Run workflow. It must pass with `Supabase answered HTTP 200`. It then runs every 3 days on its own.
 7. **Private data stays private:** with the public key only, the draft tables must be closed:
@@ -216,7 +219,83 @@ Check under **Accounts** in the dashboard that both people show as **owner · Ac
    The answer must be `permission denied for table works` (HTTP 401). Visitors only ever read the published snapshot.
 8. **Password reset:** on the dashboard login, use **Forgot your password?** for your own address. The email arrives and the link opens **Choose a password**.
 
-When all eight pass, the site is live on v2. The `content/*.json` files stay in the repo as the v1 fallback and the source of the test fixtures. From now on, content is edited in the dashboard, not in those files.
+When all eight pass, the site is live. The files in `content/` stay in the repo as the local fallback and the source of the test fixtures. From now on, content is edited in the visual editor, not in those files.
+
+## Upgrade a live v2 project to v3
+
+Only for a hosted project that went live with the v2 dashboard. It moves it to the visual editor without losing anything editors changed. Until it is done, every deploy from `main` fails with *"The published snapshot is not version 3"*, while the live site keeps serving its last good v2 build.
+
+What happens: applying the v3 migrations converts the current v2 **draft** (site texts, layout, featured works) into the default theme and a home page with sections (`migrate_v2_to_v3()`, V3-CONTRACTS §7). Works, categories, social links, media, accounts and stats are kept as they are. Nothing is public until the first v3 publish.
+
+Run it from the repo root of an up-to-date `main`, in this order (migrations before functions, see [Maintenance](#maintenance)).
+
+macOS / Linux / Git Bash:
+
+```sh
+git switch main && git pull && npm ci
+npx supabase login                        # once per computer
+npx supabase link --project-ref <ref>     # once per clone; asks for the database password
+npx supabase db push                      # lists the four 20261110000* migrations
+npx supabase migration list               # all migrations on both the local and remote side
+npx supabase functions deploy             # track (page stats) and the other functions
+```
+
+PowerShell:
+
+```powershell
+git switch main; if ($?) { git pull }; if ($?) { npm ci }
+npx supabase login                        # once per computer
+npx supabase link --project-ref <ref>     # once per clone; asks for the database password
+npx supabase db push                      # lists the four 20261110000* migrations
+npx supabase migration list               # all migrations on both the local and remote side
+npx supabase functions deploy             # track (page stats) and the other functions
+```
+
+Then publish the converted draft from the editor:
+
+1. Open https://echo1560.github.io/CesartPortfolio/admin/ and log in. The visual editor opens on the home page, which looks like the v2 site.
+2. Check it. Any v2 edits that were saved but never published are part of the draft, so they show up here too.
+3. Click **Publish** and wait for **Success**. This first v3 publish also makes the deploys from `main` pass again.
+
+**Do not run `npm run db:import` on a project editors have used.** It upserts the rows from `content/*.json`, so it would overwrite the site settings, categories and social links with the sample content and bring back the placeholder works. On a used project, the dashboard Publish above is the only step needed. (`db:import -- --hosted --publish` is only for a project nobody has edited yet: there it imports, converts and publishes in one go.)
+
+**Verify:**
+
+1. **Build from the hosted snapshot** with the public key only, as the deploy does. It must finish without *"not version 3"*, `ContentSourceError` or `ContentError`.
+
+   macOS / Linux / Git Bash:
+
+   ```sh
+   CONTENT_SOURCE=supabase PUBLIC_SUPABASE_URL=https://<ref>.supabase.co PUBLIC_SUPABASE_ANON_KEY='<anon key>' npm run build
+   ```
+
+   PowerShell:
+
+   ```powershell
+   $env:CONTENT_SOURCE = 'supabase'; $env:PUBLIC_SUPABASE_URL = 'https://<ref>.supabase.co'; $env:PUBLIC_SUPABASE_ANON_KEY = '<anon key>'
+   npm run build
+   Remove-Item Env:CONTENT_SOURCE, Env:PUBLIC_SUPABASE_URL, Env:PUBLIC_SUPABASE_ANON_KEY
+   ```
+
+2. **The v3 drafts are private.** With the public key only, the page table must be closed:
+
+   macOS / Linux / Git Bash:
+
+   ```sh
+   curl -s "https://<ref>.supabase.co/rest/v1/pages?select=id" -H "apikey: <anon key>"
+   ```
+
+   PowerShell:
+
+   ```powershell
+   curl.exe -s "https://<ref>.supabase.co/rest/v1/pages?select=id" -H "apikey: <anon key>"
+   ```
+
+   The answer must be `permission denied for table pages`.
+3. **Deploy:** GitHub → Actions → **Deploy to GitHub Pages** → Run workflow on `main`. It must pass. Open the public site: same pages as before.
+4. **Stats per page:** visit the public site, then open **Account → Stats** in the editor. **Top pages** lists the home page within a minute.
+
+If the migration fails halfway, read the error, fix the cause and run `npx supabase db push` again. `npx supabase migration list` shows which migrations were applied. To undo the v3 migrations completely, run their down files as described in `supabase/rollbacks/README.md`. The live site is not affected either way, because it only changes when a publish succeeds.
 
 ## Maintenance
 
@@ -237,6 +316,7 @@ When to run it: once a year is enough at this site's traffic. Run it sooner if *
 ## If something goes wrong
 
 - **Deploy fails with `Supabase secrets missing`:** a step 6 secret is missing or misspelled.
+- **Deploy fails with `The published snapshot is not version 3`:** the project still serves a v2 snapshot. Do [Upgrade a live v2 project to v3](#upgrade-a-live-v2-project-to-v3).
 - **Deploy fails with `get_published_content() answered HTTP …` or `nothing is published`:** the project is paused (restore it in the dashboard) or step 7 was not run.
 - **Publish stays on Queued, or fails with an upstream error:** `GITHUB_DISPATCH_TOKEN` is wrong, expired, or lacks *Contents: read and write* on this repo. Make a new token and run `npx supabase secrets set GITHUB_DISPATCH_TOKEN=…` (the same command in bash and PowerShell).
 - **Publish stays on Running after the Actions run finished:** `PUBLISH_STATUS_TOKEN` differs between Supabase and GitHub. Set the same value in both places.

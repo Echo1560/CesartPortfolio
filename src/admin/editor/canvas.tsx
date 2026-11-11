@@ -37,6 +37,11 @@ html{scroll-behavior:auto}
 a{cursor:default}
 .site-header{position:static}
 .columns__col{min-height:3rem}
+html.is-preview #ed-layer{display:none}
+html.is-preview [data-section-id],html.is-preview [data-block-id]{outline:none!important}
+html.is-preview [data-section-id]::before{content:none!important}
+html.is-preview .media{cursor:auto}
+html.is-preview .hide-desktop.hide-tablet.hide-mobile{display:none!important}
 ${OVERLAY_CSS}`;
 
 export interface CanvasHooks extends OverlayHooks {
@@ -62,6 +67,8 @@ export interface Canvas {
   activeField(): FieldBinding | null;
   /** Commits and leaves the focused text. */
   blur(): void;
+  /** Preview mode: the page as visitors see it, with no editing chrome and nothing editable. */
+  setPreview(on: boolean): void;
   destroy(): void;
 }
 
@@ -118,6 +125,7 @@ export function mountCanvas(host: HTMLElement, store: EditorStore, hooks: Canvas
   let ready = false;
   let destroyed = false;
   let overlay: Overlay | null = null;
+  let previewing = false;
 
   store.drawnSectionIds = () => {
     const ids = store.page?.sections.map((s) => s.id) ?? [];
@@ -198,7 +206,7 @@ export function mountCanvas(host: HTMLElement, store: EditorStore, hooks: Canvas
     typed = new Set();
     overlay?.rebuild();
     markSelected();
-    bindings = findFields(doc);
+    bindings = previewing ? [] : findFields(doc);
     for (const b of bindings) {
       b.el.setAttribute('contenteditable', 'true');
       b.el.setAttribute('role', 'textbox');
@@ -261,7 +269,7 @@ export function mountCanvas(host: HTMLElement, store: EditorStore, hooks: Canvas
       if (!target || target.closest('#ed-layer')) return;
       // Links never navigate inside the editor.
       if (target.closest('a')) e.preventDefault();
-      if (target.closest('.site-header, .site-footer')) return;
+      if (previewing || target.closest('.site-header, .site-footer')) return;
       const blockEl = target.closest<HTMLElement>('[data-block-id]');
       const sectionEl = target.closest<HTMLElement>('[data-section-id]');
       if (!sectionEl) {
@@ -274,6 +282,7 @@ export function mountCanvas(host: HTMLElement, store: EditorStore, hooks: Canvas
       if (m) hooks.onMedia(sel, mediaSlot(m), false);
     });
     d.addEventListener('dblclick', (e) => {
+      if (previewing) return;
       const m = (e.target as Element | null)?.closest('.media');
       const sectionEl = m?.closest<HTMLElement>('[data-section-id]');
       if (!m || !sectionEl) return;
@@ -281,6 +290,7 @@ export function mountCanvas(host: HTMLElement, store: EditorStore, hooks: Canvas
       hooks.onMedia({ sectionId: sectionEl.dataset['sectionId']!, ...(blockEl ? { blockId: blockEl.dataset['blockId']! } : {}) }, mediaSlot(m), true);
     });
     d.addEventListener('keydown', (e) => {
+      if (previewing) return;
       if (e.key === 'Escape') {
         if (active) active.el.blur();
         else store.select(null);
@@ -339,6 +349,13 @@ export function mountCanvas(host: HTMLElement, store: EditorStore, hooks: Canvas
     },
     activeField: () => active,
     blur: () => active?.el.blur(),
+    setPreview: (on) => {
+      if (on === previewing) return;
+      active?.el.blur();
+      previewing = on;
+      doc?.documentElement.classList.toggle('is-preview', on);
+      void paint(true);
+    },
     destroy: () => {
       destroyed = true;
       store.drawnSectionIds = null;

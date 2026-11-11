@@ -75,16 +75,6 @@ export interface PlacementRow extends Stamped {
   height: number | null;
   loop: boolean | null;
 }
-export interface LayoutRow extends Stamped {
-  section_id: 'hero' | 'featured' | 'grid' | 'about' | 'contact';
-  position: number;
-  visible: boolean;
-  options: Record<string, unknown>;
-}
-export interface FeaturedRow extends Stamped {
-  work_id: string;
-  position: number;
-}
 export interface EditorRow {
   user_id: string;
   display_name: string;
@@ -98,8 +88,6 @@ export interface Draft {
   works: WorkRow[];
   media: MediaRow[];
   placements: PlacementRow[];
-  layout: LayoutRow[];
-  featured: FeaturedRow[];
   editors: Map<string, EditorRow>;
 }
 
@@ -111,15 +99,13 @@ export function ok<T>(res: { data: T | null; error: { message?: string; code?: s
 
 export async function loadDraft(): Promise<Draft> {
   const c = sb();
-  const [site, socials, categories, works, media, placements, layout, featured, editors] = await Promise.all([
+  const [site, socials, categories, works, media, placements, editors] = await Promise.all([
     c.from('site').select('*').eq('id', 1).single(),
     c.from('socials').select('*').order('position'),
     c.from('categories').select('*').order('position'),
     c.from('works').select('*'),
     c.from('media').select('*').order('created_at', { ascending: false }),
     c.from('media_placements').select('*').order('position'),
-    c.from('layout').select('*').order('position'),
-    c.from('layout_featured_works').select('*').order('position'),
     c.from('editors').select('user_id, display_name, email'),
   ]);
   return {
@@ -129,8 +115,6 @@ export async function loadDraft(): Promise<Draft> {
     works: sortWorks(ok(works) as WorkRow[]),
     media: ok(media) as MediaRow[],
     placements: ok(placements) as PlacementRow[],
-    layout: ok(layout) as LayoutRow[],
-    featured: ok(featured) as FeaturedRow[],
     editors: new Map((ok(editors) as EditorRow[]).map((e) => [e.user_id, e])),
   };
 }
@@ -215,15 +199,11 @@ export function placementRowFields(v: PlacementValue) {
   };
 }
 
-/** Insert or update the single placement of a slot (hero, about portrait, work cover). */
+/** Insert or update the single placement of a slot (the work cover). */
 export async function saveSinglePlacement(slot: Exclude<Slot, 'work_gallery'>, workId: string | null, existing: PlacementRow | undefined, v: PlacementValue): Promise<void> {
   const fields = placementRowFields(v);
   if (existing) ok(await sb().from('media_placements').update(fields).eq('id', existing.id).select('id'));
   else ok(await sb().from('media_placements').insert({ slot, work_id: workId, position: 0, ...fields }).select('id'));
-}
-
-export async function removePlacement(id: string): Promise<void> {
-  ok(await sb().from('media_placements').delete().eq('id', id).select('id'));
 }
 
 const GALLERY_OFFSET = 1000;

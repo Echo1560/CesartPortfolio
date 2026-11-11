@@ -3,13 +3,11 @@ import { clear, h } from './dom';
 import { loadDraft, type Draft } from './data';
 import { renderLogin, renderSetPassword } from './auth';
 import { arrivedViaEmailLink, configured, sb } from './supabase';
-import { renderContent } from './views/content';
 import { renderWorks } from './views/works';
 import { renderPages } from './views/pages';
-import { renderLayout } from './views/layout';
 import { renderMedia } from './views/media';
-import { renderPreview } from './views/preview';
 import { renderPublish } from './views/publish';
+import { renderSettings } from './views/settings';
 import { renderStats } from './views/stats';
 import { renderAccounts } from './views/accounts';
 import { renderActivity } from './views/activity';
@@ -26,11 +24,9 @@ const EDITOR = 'editor';
 const ROUTES: [id: string, label: string, render: (el: HTMLElement, ctx: ViewContext) => void | Promise<void>][] = [
   [EDITOR, 'Visual editor', () => undefined],
   ['pages', 'Pages', renderPages],
-  ['content', 'Content', renderContent],
   ['works', 'Works', renderWorks],
-  ['layout', 'Layout', renderLayout],
+  ['settings', 'Settings', renderSettings],
   ['media', 'Media library', renderMedia],
-  ['preview', 'Preview', renderPreview],
   ['publish', 'Publish', renderPublish],
   ['stats', 'Stats', renderStats],
   ['accounts', 'Accounts', renderAccounts],
@@ -100,7 +96,7 @@ async function renderShell(email: string): Promise<void> {
   const banner = h('p', { class: 'banner' }, 'Everything you save here is a draft. It is not public until it is published.');
   root.append(bar, banner, main);
 
-  // The classic forms load their draft on demand; the visual editor loads its own.
+  // The dashboard views load their draft on demand; the visual editor loads its own.
   let draft: Draft | null = null;
   const ctx: ViewContext = {
     get draft() {
