@@ -25,15 +25,13 @@ const DEVICES: [Device, string][] = [
 const POLL_MS = 5000;
 const MENU: [href: string, label: string][] = [
   ['#/pages', 'Pages and navigation'],
+  ['#/works', 'Works'],
+  ['#/settings', 'Site settings'],
   ['#/media', 'Media library'],
   ['#/stats', 'Stats'],
   ['#/activity', 'Activity'],
   ['#/accounts', 'Accounts'],
   ['#/publish', 'Publish history'],
-  ['#/preview', 'Classic preview'],
-  ['#/content', 'Classic: content form'],
-  ['#/works', 'Works'],
-  ['#/layout', 'Classic: layout form'],
 ];
 
 let active: { destroy(): void } | null = null;
@@ -53,7 +51,7 @@ export async function renderEditor(el: HTMLElement, opts: { slug?: string; email
   try {
     store = new EditorStore(await loadEditorData(), opts.slug);
   } catch (e) {
-    loading.replaceWith(h('p', { class: 'field__error', role: 'alert' }, `${(e as Error).message} If a media file is missing alt text or a poster, fix it in the classic forms (Content, Works, Media library), then reload.`));
+    loading.replaceWith(h('p', { class: 'field__error', role: 'alert' }, `${(e as Error).message} If a media file is missing alt text or a poster, fix it in Works or the Media library, then reload.`));
     return;
   }
   loading.remove();
