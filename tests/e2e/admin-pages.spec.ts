@@ -75,3 +75,62 @@ test('the home page cannot be deleted from the list', async ({ page }) => {
   await mountAdmin(page, seeded(), '#/pages');
   await expect(page.getByRole('button', { name: 'Delete Home' })).toBeDisabled();
 });
+
+const NEWS_ID = '00000000-0000-4000-8000-0000000000a2';
+
+/** The seeded draft plus a "News" page that is linked from the menu. */
+function withNews(): Backend {
+  const backend = seeded();
+  backend.tables['pages']!.push({ id: NEWS_ID, slug: 'news', title: 'News', seo_title: null, seo_description: null, social_media_id: null, status: 'published', is_home: false, position: 1, ...STAMP });
+  backend.tables['site']![0]!['nav'] = { items: [{ label: 'News', link: { kind: 'page', pageId: NEWS_ID } }] };
+  return backend;
+}
+
+test('deleting a page asks first, removes it and drops its menu link', async ({ page }) => {
+  const backend = withNews();
+  await mountAdmin(page, backend, '#/pages');
+
+  await page.getByRole('button', { name: 'Delete News' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Delete page' }).click();
+
+  await expect(page.locator('[data-page="news"]')).toHaveCount(0);
+  expect(backend.tables['pages']!.map((p) => p['slug'])).toEqual(['home']);
+  expect(backend.tables['site']![0]!['nav']).toEqual({ items: [] });
+});
+
+test('declining the page delete confirmation keeps the page and writes nothing', async ({ page }) => {
+  const backend = withNews();
+  await mountAdmin(page, backend, '#/pages');
+
+  await page.getByRole('button', { name: 'Delete News' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Cancel' }).click();
+
+  await expect(page.locator('[data-page="news"]')).toBeVisible();
+  expect(backend.writes).toEqual([]);
+});
+
+test('making a page the home page calls set_home_page after confirmation', async ({ page }) => {
+  const backend = withNews();
+  const calls: unknown[] = [];
+  backend.rpc['set_home_page'] = (args) => {
+    calls.push(args);
+    return null;
+  };
+  await mountAdmin(page, backend, '#/pages');
+
+  await page.getByRole('button', { name: 'Make News the home page' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Make home page' }).click();
+
+  await expect.poll(() => calls).toEqual([{ p_page_id: NEWS_ID }]);
+});
+
+test('duplicating a page adds a copy with its own address', async ({ page }) => {
+  const backend = withNews();
+  await mountAdmin(page, backend, '#/pages');
+
+  await page.getByRole('button', { name: 'Duplicate News' }).click();
+
+  await expect.poll(() => backend.tables['pages']!.length).toBe(3);
+  const slugs = backend.tables['pages']!.map((p) => p['slug']);
+  expect(new Set(slugs).size).toBe(3);
+});
