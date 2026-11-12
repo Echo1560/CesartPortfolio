@@ -36,7 +36,7 @@ jobs:
       SB_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
       STATUS_TOKEN: ${{ secrets.PUBLISH_STATUS_TOKEN }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Choose the content source
         id: config
@@ -124,7 +124,7 @@ jobs:
       BUILD_RESULT: ${{ needs.build.result }}
       DEPLOY_RESULT: ${{ needs.deploy.result }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           sparse-checkout: .github/scripts
       - run: |
